@@ -13,6 +13,9 @@ auto Trie::Get(std::string_view key) const -> const T * {
   // Otherwise, return the value.
 
   std::shared_ptr<const TrieNode> current = root_;
+  if(current == nullptr){
+    return nullptr;
+  }
 
   for(char c : key){
     auto childIt = current->children_.find(c);
