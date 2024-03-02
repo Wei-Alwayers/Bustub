@@ -17,12 +17,10 @@ auto TrieStore::Get(std::string_view key) -> std::optional<ValueGuard<T>> {
   root_lock_.unlock();
 
   auto value = trie.Get<T>(key);
-  if(value != nullptr){
+  if (value != nullptr) {
     return ValueGuard(trie, *value);
   }
-  else{
-    return std::nullopt;
-  }
+  return std::nullopt;
 }
 
 template <class T>
