@@ -31,7 +31,10 @@ void TrieStore::Put(std::string_view key, T value) {
   write_lock_.lock();
   root_lock_.lock();
   Trie trie = root_;
-  this->root_ = trie.Put<T>(key, std::move(value));
+  root_lock_.unlock();
+  trie = trie.Put<T>(key, std::move(value));
+  root_lock_.lock();
+  this->root_ = trie;
   root_lock_.unlock();
   write_lock_.unlock();
 }
@@ -43,7 +46,10 @@ void TrieStore::Remove(std::string_view key) {
   write_lock_.lock();
   root_lock_.lock();
   Trie trie = root_;
-  this->root_ = trie.Remove(key);
+  root_lock_.unlock();
+  trie = trie.Remove(key);
+  root_lock_.lock();
+  this->root_ = trie;
   root_lock_.unlock();
   write_lock_.unlock();
 }
