@@ -22,7 +22,7 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   current_timestamp_++;
   size_t max_k_distance = 0;
   size_t max_last_access_time = 0; // 距离最近一次访问的时间差
-  auto target_it = node_store_.begin(); // 用于保存指定位置的迭代器
+  auto target_it = node_store_.end(); // 用于保存指定位置的迭代器
   for(auto it = node_store_.begin(); it != node_store_.end(); it++){
     if(it->second.isEvictable() == false){
       continue;
