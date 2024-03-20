@@ -136,9 +136,31 @@ auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
   return true;
 }
 
-void BufferPoolManager::FlushAllPages() {}
+void BufferPoolManager::FlushAllPages() {
+  // 使用迭代器遍历 map
+  for (auto it = page_table_.begin(); it != page_table_.end(); ++it) {
+    page_id_t page_id = it->first;
+    FlushPage(page_id);
+  }
+}
 
-auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool { return false; }
+auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
+  if(page_table_.find(page_id) == page_table_.end()){
+    // 没找到这个page
+    return true;
+  }
+  frame_id_t frame_id = page_table_.find(page_id)->second;
+  if(pages_[frame_id].pin_count_ > 0){
+    // pin cannot be deleted
+    return false;
+  }
+  replacer_->Remove(frame_id);
+  page_table_.erase(page_id);
+  free_list_.emplace_back(static_cast<int>(frame_id));
+  pages_[frame_id].ResetMemory();
+  DeallocatePage(page_id);
+  return true;
+}
 
 auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 
