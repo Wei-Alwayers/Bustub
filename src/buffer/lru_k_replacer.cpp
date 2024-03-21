@@ -27,12 +27,11 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
     if (!it->second.IsEvictable()) {
       continue;
     }
-    //    size_t cur_frame_id = it->first;
     size_t cur_k_distance;
     size_t cur_last_access_time;
     if (it->second.GetHistory().size() < k_) {
       cur_k_distance = std::numeric_limits<int>::max();
-      cur_last_access_time = current_timestamp_ - it->second.GetHistory().front();
+      cur_last_access_time = current_timestamp_ - it->second.GetHistory().back();
     } else {
       cur_k_distance = current_timestamp_ - it->second.GetHistory().back();
       cur_last_access_time = current_timestamp_ - it->second.GetHistory().front();
