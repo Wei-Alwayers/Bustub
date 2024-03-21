@@ -45,7 +45,6 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
       // replacer找到可以替换的frame，检查是否为dirty
       if (pages_[replacement_frame].is_dirty_) {
         disk_manager_->WritePage(pages_[replacement_frame].page_id_, pages_[replacement_frame].data_);
-        pages_[replacement_frame].is_dirty_ = false;
       }
       page_table_.erase(pages_[replacement_frame].page_id_);
     } else {
@@ -58,6 +57,7 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   *page_id = new_page_id;
   pages_[replacement_frame].page_id_ = *page_id;
   pages_[replacement_frame].pin_count_++;
+  pages_[replacement_frame].is_dirty_ = false;
   page_table_.insert(std::make_pair(*page_id, replacement_frame));
   replacer_->RecordAccess(replacement_frame);
   replacer_->SetEvictable(replacement_frame, false);
@@ -84,7 +84,6 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
       // replacer找到可以替换的frame，检查是否为dirty
       if (pages_[frame_id].is_dirty_) {
         disk_manager_->WritePage(pages_[frame_id].page_id_, pages_[frame_id].data_);
-        pages_[frame_id].is_dirty_ = false;
       }
       page_table_.erase(pages_[frame_id].page_id_);
     } else {
