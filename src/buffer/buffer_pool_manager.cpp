@@ -47,7 +47,6 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
         disk_manager_->WritePage(pages_[replacement_frame].page_id_, pages_[replacement_frame].data_);
         pages_[replacement_frame].is_dirty_ = false;
       }
-      pages_[replacement_frame].ResetMemory();
       page_table_.erase(pages_[replacement_frame].page_id_);
     } else {
       // 没有找到
@@ -72,11 +71,9 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
     // 已经在buffer pool中
     frame_id = page_table_.find(page_id)->second;
     replacer_->RecordAccess(frame_id);
+    pages_[frame_id].pin_count_++;
     return &pages_[frame_id];
   }
-  // 从disk中读区数据
-  char *page_data = new char[BUSTUB_PAGE_SIZE];
-  disk_manager_->ReadPage(page_id, page_data);
 
   if (!free_list_.empty()) {
     // 优先从free list中获取replacement frame
@@ -89,18 +86,17 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
         disk_manager_->WritePage(pages_[frame_id].page_id_, pages_[frame_id].data_);
         pages_[frame_id].is_dirty_ = false;
       }
-      pages_[frame_id].ResetMemory();
-      delete[] pages_[frame_id].data_;  // 释放被替换页面的内存
       page_table_.erase(pages_[frame_id].page_id_);
     } else {
       // 没有找到
-      delete[] page_data;  // 没有用到的页面数据需要释放
       return nullptr;
     }
   }
+  // 从disk中读区数据
+  disk_manager_->ReadPage(page_id, pages_[frame_id].data_);
   pages_[frame_id].page_id_ = page_id;
   pages_[frame_id].pin_count_++;
-  pages_[frame_id].data_ = page_data;
+  pages_[frame_id].is_dirty_ = false;
   page_table_.insert(std::make_pair(page_id, frame_id));
   replacer_->RecordAccess(frame_id);
   replacer_->SetEvictable(frame_id, false);
@@ -162,7 +158,6 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
   replacer_->Remove(frame_id);
   page_table_.erase(page_id);
   free_list_.emplace_back(static_cast<int>(frame_id));
-  pages_[frame_id].ResetMemory();
   DeallocatePage(page_id);
   return true;
 }
