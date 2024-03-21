@@ -34,6 +34,7 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
 BufferPoolManager::~BufferPoolManager() { delete[] pages_; }
 
 auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
+  std::lock_guard<std::mutex> lock(latch_);
   frame_id_t replacement_frame;
   if(!free_list_.empty()){
     // 优先从free list中获取replacement frame
@@ -67,6 +68,7 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
 }
 
 auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType access_type) -> Page * {
+  std::lock_guard<std::mutex> lock(latch_);
   frame_id_t frame_id;
   if(page_table_.find(page_id) != page_table_.end()){
     // 已经在buffer pool中
@@ -108,6 +110,7 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
 }
 
 auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {
+  std::lock_guard<std::mutex> lock(latch_);
   if(page_table_.find(page_id) == page_table_.end()){
     // 没找到这个page
     return false;
@@ -126,6 +129,7 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
 }
 
 auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
+  std::lock_guard<std::mutex> lock(latch_);
   if(page_table_.find(page_id) == page_table_.end()){
     // 没找到这个page
     return false;
@@ -145,6 +149,7 @@ void BufferPoolManager::FlushAllPages() {
 }
 
 auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
+  std::lock_guard<std::mutex> lock(latch_);
   if(page_table_.find(page_id) == page_table_.end()){
     // 没找到这个page
     return true;
@@ -162,14 +167,17 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
   return true;
 }
 
-auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
+auto BufferPoolManager::AllocatePage() -> page_id_t {
+  std::lock_guard<std::mutex> lock(latch_);
+  return next_page_id_++;
+}
 
-auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, FetchPage(page_id)}; }
 
-auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard { return {this, FetchPage(page_id)}; }
 
-auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { return {this, FetchPage(page_id)}; }
 
-auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard {return {this, NewPage(page_id)};}
 
 }  // namespace bustub
