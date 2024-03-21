@@ -27,23 +27,17 @@ enum class AccessType { Unknown = 0, Get, Scan };
 
 class LRUKNode {
  public:
-  LRUKNode() = default; // 添加默认构造函数
-  explicit LRUKNode(size_t k, frame_id_t fid){
+  LRUKNode() = default;  // 添加默认构造函数
+  explicit LRUKNode(size_t k, frame_id_t fid) {
     k_ = k;
     fid_ = fid;
   }
 
-  size_t getK() const { return k_; }
-  void setK(size_t k) { k_ = k; }
-  frame_id_t getFid() const { return fid_; }
-  void setFid(frame_id_t fid) { fid_ = fid; }
-  bool isEvictable() const { return is_evictable_; }
-  void setIsEvictable(bool isEvictable) { is_evictable_ = isEvictable; }
-  const std::list<size_t> &getHistory() const { return history_; }
-  void setHistory(const std::list<size_t> &history) { history_ = history; }
-
-  void addHistory(size_t timestamp){
-    if(history_.size() >= k_){
+  auto IsEvictable() const -> bool { return is_evictable_; }
+  void SetIsEvictable(bool isEvictable) { is_evictable_ = isEvictable; }
+  auto GetHistory() -> const std::list<size_t> & { return history_; }
+  void AddHistory(size_t timestamp) {
+    if (history_.size() >= k_) {
       history_.pop_back();
     }
     history_.push_front(timestamp);
@@ -53,11 +47,10 @@ class LRUKNode {
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
 
-  std::list<size_t> history_; // history是一个大小不超过k的队列，它的back表示前k次的时间戳，front表示上一次访问的时间戳
+  std::list<size_t> history_;  // history是一个大小不超过k的队列，它的back表示前k次的时间戳，front表示上一次访问的时间戳
   size_t k_;
   frame_id_t fid_;
   bool is_evictable_{false};
-
 };
 
 /**
@@ -168,9 +161,9 @@ class LRUKReplacer {
   // Remove maybe_unused if you start using them.
   std::unordered_map<frame_id_t, LRUKNode> node_store_;
   size_t current_timestamp_{0};
-  size_t curr_size_{0}; // overall number of frames
-  size_t evictable_size_{0}; // number of evictable frames.
-  size_t replacer_size_; // the maximum number of frames the LRUReplacer will be required to store
+  size_t curr_size_{0};       // overall number of frames
+  size_t evictable_size_{0};  // number of evictable frames.
+  size_t replacer_size_;      // the maximum number of frames the LRUReplacer will be required to store
   size_t k_;
   std::mutex latch_;
 };

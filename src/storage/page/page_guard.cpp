@@ -16,64 +16,57 @@ BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept {
 }
 
 void BasicPageGuard::Drop() {
-  bpm_->UnpinPage(page_->GetPageId(), is_dirty_);
+  if (page_ != nullptr) {
+    bpm_->UnpinPage(page_->GetPageId(), is_dirty_);
+  }
   bpm_ = nullptr;
   page_ = nullptr;
 }
 
 auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard & {
-  if(this != &that){
-    Drop();
+  Drop();
 
-    // Move resources from 'that' to the current object
-    this->bpm_ = that.bpm_;
-    this->page_ = that.page_;
-    this->is_dirty_ = that.is_dirty_;
+  // Move resources from 'that' to the current object
+  this->bpm_ = that.bpm_;
+  this->page_ = that.page_;
+  this->is_dirty_ = that.is_dirty_;
 
-    // Invalidate 'that' object
-    that.bpm_ = nullptr;
-    that.page_ = nullptr;
-    that.is_dirty_ = false;
-  }
+  // Invalidate 'that' object
+  that.bpm_ = nullptr;
+  that.page_ = nullptr;
+  that.is_dirty_ = false;
   return *this;
 }
 
 BasicPageGuard::~BasicPageGuard(){};  // NOLINT
 
-ReadPageGuard::ReadPageGuard(ReadPageGuard &&that) noexcept{
-  this->guard_ = BasicPageGuard(std::move(that.guard_));
-}
+ReadPageGuard::ReadPageGuard(ReadPageGuard &&that) noexcept { this->guard_ = BasicPageGuard(std::move(that.guard_)); }
 
 auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & {
-  if(this != &that){
-    Drop();
-    this->guard_ = BasicPageGuard(std::move(that.guard_));
-  }
+  Drop();
+  this->guard_ = BasicPageGuard(std::move(that.guard_));
   return *this;
 }
 
 void ReadPageGuard::Drop() {
-  // TODO latch问题
+  // TODO(hmwei) latch问题
   guard_.Drop();
-
 }
 
 ReadPageGuard::~ReadPageGuard() {}  // NOLINT
 
-WritePageGuard::WritePageGuard(WritePageGuard &&that) noexcept{
+WritePageGuard::WritePageGuard(WritePageGuard &&that) noexcept {
   this->guard_ = BasicPageGuard(std::move(that.guard_));
 }
 
 auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard & {
-  if(this != &that){
-    Drop();
-    this->guard_ = BasicPageGuard(std::move(that.guard_));
-  }
+  Drop();
+  this->guard_ = BasicPageGuard(std::move(that.guard_));
   return *this;
 }
 
 void WritePageGuard::Drop() {
-  // TODO latch问题
+  // TODO(hmwei) latch问题
   guard_.Drop();
 }
 
