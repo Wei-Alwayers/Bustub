@@ -90,9 +90,11 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
         pages_[frame_id].is_dirty_ = false;
       }
       pages_[frame_id].ResetMemory();
+      delete[] pages_[frame_id].data_;  // 释放被替换页面的内存
       page_table_.erase(pages_[frame_id].page_id_);
     } else {
       // 没有找到
+      delete[] page_data;  // 没有用到的页面数据需要释放
       return nullptr;
     }
   }
@@ -120,7 +122,9 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
   if (pages_[frame_id].pin_count_ == 0) {
     replacer_->SetEvictable(frame_id, true);
   }
-  pages_[frame_id].is_dirty_ = is_dirty;
+  if (!pages_[frame_id].is_dirty_ && is_dirty) {
+    pages_[frame_id].is_dirty_ = is_dirty;
+  }
   return true;
 }
 
