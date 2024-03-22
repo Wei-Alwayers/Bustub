@@ -25,16 +25,18 @@ void BasicPageGuard::Drop() {
 }
 
 auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard & {
-  Drop();
-  // Move resources from 'that' to the current object
-  this->bpm_ = that.bpm_;
-  this->page_ = that.page_;
-  this->is_dirty_ = that.is_dirty_;
+  if (this != &that) {
+    Drop();
+    // Move resources from 'that' to the current object
+    this->bpm_ = that.bpm_;
+    this->page_ = that.page_;
+    this->is_dirty_ = that.is_dirty_;
 
-  // Invalidate 'that' object
-  that.bpm_ = nullptr;
-  that.page_ = nullptr;
-  that.is_dirty_ = false;
+    // Invalidate 'that' object
+    that.bpm_ = nullptr;
+    that.page_ = nullptr;
+    that.is_dirty_ = false;
+  }
   return *this;
 }
 
@@ -61,6 +63,7 @@ WritePageGuard::WritePageGuard(WritePageGuard &&that) noexcept {
 }
 
 auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard & {
+  Drop();
   this->guard_ = BasicPageGuard(std::move(that.guard_));
   return *this;
 }
