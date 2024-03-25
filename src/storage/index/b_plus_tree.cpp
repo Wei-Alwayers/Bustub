@@ -26,7 +26,11 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, page_id_t header_page_id, BufferPool
  * Helper function to decide whether current b+tree is empty
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return true; }
+auto BPLUSTREE_TYPE::IsEmpty() const -> bool {
+  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  return (root_page->root_page_id_ != INVALID_PAGE_ID);
+}
 /*****************************************************************************
  * SEARCH
  *****************************************************************************/
@@ -55,6 +59,22 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *txn) -> bool {
+  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  if(root_page->root_page_id_ == INVALID_PAGE_ID){
+    // 第一条数据，创建一个新page
+    bpm_->NewPage(&root_page->root_page_id_);
+    // 创建leaf node
+    guard = bpm_->FetchPageBasic(root_page->root_page_id_);
+    BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>* page_as_leaf = guard.AsMut<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>();
+    page_as_leaf->Init();
+    page_as_leaf->SetPageType(IndexPageType::LEAF_PAGE);
+    page_as_leaf->SetSize(1);
+    page_as_leaf->Add(key, value);
+  }
+
+
+
   // Declaration of context instance.
   Context ctx;
   (void)ctx;
@@ -109,7 +129,11 @@ auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); 
  * @return Page id of the root of this tree
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t { return 0; }
+auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t {
+  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  return root_page->root_page_id_;
+}
 
 /*****************************************************************************
  * UTILITIES AND DEBUG

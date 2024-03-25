@@ -15,7 +15,7 @@ class BasicPageGuard {
   BasicPageGuard(const BasicPageGuard &) = delete;
   auto operator=(const BasicPageGuard &) -> BasicPageGuard & = delete;
 
-  /** TODO(P1): Add implementation
+  /**
    *
    * @brief Move constructor for BasicPageGuard
    *
@@ -27,7 +27,7 @@ class BasicPageGuard {
    */
   BasicPageGuard(BasicPageGuard &&that) noexcept;
 
-  /** TODO(P1): Add implementation
+  /**
    *
    * @brief Drop a page guard
    *
@@ -38,7 +38,7 @@ class BasicPageGuard {
    */
   void Drop();
 
-  /** TODO(P1): Add implementation
+  /**
    *
    * @brief Move assignment for BasicPageGuard
    *
@@ -50,7 +50,7 @@ class BasicPageGuard {
    */
   auto operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard &;
 
-  /** TODO(P1): Add implementation
+  /**
    *
    * @brief Destructor for BasicPageGuard
    *
