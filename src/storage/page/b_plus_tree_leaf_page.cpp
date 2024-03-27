@@ -53,9 +53,21 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const -> KeyType {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::Add(const KeyType &key, const ValueType &value){
-  array_[0].first = key;
-  array_[0].second = value;
+void B_PLUS_TREE_LEAF_PAGE_TYPE::Add(const KeyType &key, const ValueType &value, const KeyComparator &comparator){
+  int size = GetSize();
+  array_[size].first = key;
+  array_[size].second = value;
+  size++;
+  SetSize(size);
+  // 使用Lambda表达式指定比较方式，比较数组的 first 元素
+  std::sort(array_, array_ + size, [&comparator](const auto &a, const auto &b) {
+    return comparator(a.first, b.first);
+  });
+
+  //检查是否已满
+  if(size == GetMaxSize()){
+    // TODO: split
+  }
 }
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;

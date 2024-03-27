@@ -62,15 +62,15 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
   auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
   if(root_page->root_page_id_ == INVALID_PAGE_ID){
-    // 第一条数据，创建一个新page
+    // B+树是空的，插入第一条数据，创建一个新page
     bpm_->NewPage(&root_page->root_page_id_);
     // 创建leaf node
     guard = bpm_->FetchPageBasic(root_page->root_page_id_);
     BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>* page_as_leaf = guard.AsMut<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>();
     page_as_leaf->Init();
     page_as_leaf->SetPageType(IndexPageType::LEAF_PAGE);
-    page_as_leaf->SetSize(1);
-    page_as_leaf->Add(key, value);
+    page_as_leaf->SetSize(0);
+    page_as_leaf->Add(key, value, comparator_);
   }
 
 
