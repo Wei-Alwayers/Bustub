@@ -53,7 +53,7 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Find(const KeyType &key, const KeyComparator &comparator) const -> page_id_t{
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InternalFind(const KeyType &key, const KeyComparator &comparator) const -> page_id_t{
   // 二分查找
   int low = 1;  // 数组从索引1开始存储key
   int size = GetSize();

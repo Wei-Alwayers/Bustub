@@ -71,7 +71,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Add(const KeyType &key, const ValueType &value,
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::Find(const KeyType &key, const KeyComparator &comparator,ValueType *value) const -> bool {
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::LeafFind(const KeyType &key, const KeyComparator &comparator,ValueType *value) const -> bool {
   // 二分查找
   int low = 0;
   int high = GetSize() - 1;

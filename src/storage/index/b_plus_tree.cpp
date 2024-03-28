@@ -52,14 +52,16 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   while(!page->IsLeafPage()){
     // 顺着内部节点查询
     auto page_as_internal = guard.AsMut<BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>>();
-    page_id_t page_id = page_as_internal->Find(key, comparator_);
+    page_id_t page_id = page_as_internal->InternalFind(key, comparator_);
     guard = bpm_->FetchPageBasic(page_id);
+//    auto page_as_leaf = guard.AsMut<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>();
+//    std::string str = page_as_leaf->ToString();
     page = guard.AsMut<BPlusTreePage>();
   }
   // 查找到叶节点
   auto page_as_leaf = guard.AsMut<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>();
   ValueType *value = nullptr;
-  if(page_as_leaf->Find(key,  comparator_, value)){
+  if(page_as_leaf->LeafFind(key, comparator_, value)){
     // 找到该key
     result->push_back(*value);
     return true;

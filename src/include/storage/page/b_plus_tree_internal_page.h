@@ -105,7 +105,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    * @param comparator
    * @return 要查找的下一个page的id
    */
-  auto Find(const KeyType &key, const KeyComparator &comparator) const -> page_id_t ;
+  auto InternalFind(const KeyType &key, const KeyComparator &comparator) const -> page_id_t;
 
  private:
   // Flexible array member for page data.
