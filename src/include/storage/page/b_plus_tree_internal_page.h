@@ -51,8 +51,10 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    * @param index The index of the key to get. Index must be non-zero.
    * @return Key at index
    */
-  auto KeyAt(int index) const -> KeyType;
-
+  auto KeyAt(int index) const -> KeyType{
+    return array_[index].first;
+  }
+//  auto KeyAt(int index) const -> KeyType;
   /**
    *
    * @param index The index of the key to set. Index must be non-zero.
@@ -64,7 +66,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    *
    * @param value the value to search for
    */
-  auto ValueIndex(const ValueType &value) const -> int;
+//  auto ValueIndex(const ValueType &value) const -> int;
 
   /**
    *
