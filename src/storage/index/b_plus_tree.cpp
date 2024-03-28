@@ -29,7 +29,7 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::IsEmpty() const -> bool {
   BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
   auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
-  return (root_page->root_page_id_ != INVALID_PAGE_ID);
+  return (root_page->root_page_id_ == INVALID_PAGE_ID);
 }
 /*****************************************************************************
  * SEARCH
@@ -41,6 +41,32 @@ auto BPLUSTREE_TYPE::IsEmpty() const -> bool {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn) -> bool {
+  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  if(root_page->root_page_id_ != INVALID_PAGE_ID){
+    // 树是空的
+    return false;
+  }
+  guard = bpm_->FetchPageBasic(root_page->root_page_id_);
+  auto page = guard.AsMut<BPlusTreePage>();
+  while(!page->IsLeafPage()){
+    // 顺着内部节点查询
+    auto page_as_internal = guard.AsMut<BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>>();
+    page_id_t page_id = page_as_internal->Find(key, comparator_);
+    guard = bpm_->FetchPageBasic(page_id);
+    page = guard.AsMut<BPlusTreePage>();
+  }
+  // 查找到叶节点
+  auto page_as_leaf = guard.AsMut<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>();
+  ValueType *value = nullptr;
+  if(page_as_leaf->Find(key,  comparator_, value)){
+    // 找到该key
+    result->push_back(*value);
+    return true;
+  }
+  return false;
+
+
   // Declaration of context instance.
   Context ctx;
   (void)ctx;
@@ -66,15 +92,14 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     bpm_->NewPage(&root_page->root_page_id_);
     // 创建leaf node
     guard = bpm_->FetchPageBasic(root_page->root_page_id_);
-    BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>* page_as_leaf = guard.AsMut<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>();
+    auto page_as_leaf = guard.AsMut<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>();
     page_as_leaf->Init();
     page_as_leaf->SetPageType(IndexPageType::LEAF_PAGE);
     page_as_leaf->SetSize(0);
     page_as_leaf->Add(key, value, comparator_);
+    return true;
   }
-
-
-
+  // TODO: simple insert
   // Declaration of context instance.
   Context ctx;
   (void)ctx;

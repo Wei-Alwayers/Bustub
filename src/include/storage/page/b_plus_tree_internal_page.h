@@ -99,6 +99,14 @@ class BPlusTreeInternalPage : public BPlusTreePage {
     return kstr;
   }
 
+  /**
+   * 二分查找，满足array[i].first <= key && array[i +1].first > key
+   * @param key
+   * @param comparator
+   * @return 要查找的下一个page的id
+   */
+  auto Find(const KeyType &key, const KeyComparator &comparator) const -> page_id_t ;
+
  private:
   // Flexible array member for page data.
   MappingType array_[0];
