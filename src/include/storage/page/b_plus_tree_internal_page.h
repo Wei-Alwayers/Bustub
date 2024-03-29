@@ -108,6 +108,8 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    */
   auto InternalFind(const KeyType &key, const KeyComparator &comparator) const -> page_id_t;
 
+  void Add(int index, const KeyType key, const page_id_t page_id);
+  void Add(int index, const page_id_t page_id);
  private:
   // Flexible array member for page data.
   MappingType array_[0];

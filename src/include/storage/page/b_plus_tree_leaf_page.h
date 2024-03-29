@@ -77,6 +77,8 @@ class BPlusTreeLeafPage : public BPlusTreePage {
    */
   auto LeafFind(const KeyType &key, const KeyComparator &comparator, ValueType *value) const -> bool;
 
+  static void Redistribute(BPlusTreeLeafPage *page, BPlusTreeLeafPage *new_page);
+
   /**
    * @brief for test only return a string representing all keys in
    * this leaf page formatted as "(key1,key2,key3,...)"

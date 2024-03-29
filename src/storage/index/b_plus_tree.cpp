@@ -94,8 +94,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     guard = bpm_->FetchPageBasic(root_page->root_page_id_);
     auto leaf_page = guard.template AsMut<LeafPage>();
     leaf_page->Init(leaf_max_size_);
-    leaf_page->SetPageType(IndexPageType::LEAF_PAGE);
-    leaf_page->SetSize(0);
+    leaf_page->SetNextPageId(INVALID_PAGE_ID);
     leaf_page->Add(key, value, comparator_);
     return true;
   }
@@ -116,6 +115,25 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     return false;
   }
   leaf_page->Add(key, value, comparator_);
+  if(leaf_page->GetSize() == leaf_page->GetMaxSize()){
+    // 新建leaf node
+    page_id_t new_page_id;
+    BasicPageGuard new_guard = bpm_->NewPageGuarded(&new_page_id);
+    auto new_leaf_page = new_guard.template AsMut<LeafPage>();
+    new_leaf_page->Init(leaf_max_size_);
+    new_leaf_page->SetNextPageId(INVALID_PAGE_ID);
+    // Redistribute leaf page
+    LeafPage::Redistribute(leaf_page, new_leaf_page);
+    // 新建parent node作为新的root node
+    page_id_t new_root_id;
+    BasicPageGuard new_root_guard = bpm_->NewPageGuarded(&new_root_id);
+    auto new_root_page = new_root_guard.template AsMut<InternalPage>();
+    new_root_page->Init(internal_max_size_);
+    new_root_page->Add(0, guard.PageId());
+    new_root_page->Add(1, new_leaf_page->KeyAt(0), new_page_id);
+    // 修改root值
+    root_page->root_page_id_ = new_root_id;
+  }
   return true;
   // Declaration of context instance.
   Context ctx;

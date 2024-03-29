@@ -59,16 +59,12 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Add(const KeyType &key, const ValueType &value,
   array_[size].second = value;
   size++;
   SetSize(size);
-  // TODO: 排序似乎有问题
   // 使用Lambda表达式指定比较方式，比较数组的 first 元素
-//  std::sort(array_, array_ + size, [&comparator](const auto &a, const auto &b) {
-//    return comparator(a.first, b.first);
-//  });
+  std::sort(array_, array_ + size, [&comparator](const auto &a, const auto &b) {
+    // 从小到大排列
+    return comparator(a.first, b.first) < 0;
+  });
 
-  //检查是否已满
-  if(size == GetMaxSize()){
-    // TODO: split
-  }
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -90,6 +86,16 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::LeafFind(const KeyType &key, const KeyComparato
     }
   }
   return false;  // 如果未找到key，返回指定的字符串
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::Redistribute(BPlusTreeLeafPage *page, BPlusTreeLeafPage *new_page){
+  int half_size = page->GetMaxSize() / 2;
+  for(int i = 0; i < page->GetMaxSize() - half_size; i++){
+    new_page->array_[i] = page->array_[i + half_size];
+  }
+  page->SetSize(half_size);
+  new_page->SetSize(page->GetMaxSize() - half_size);
 }
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;
