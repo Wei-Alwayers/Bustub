@@ -59,8 +59,22 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
 
+  /**
+   * 向叶节点插入元素
+   * @param key
+   * @param value
+   * @param comparator
+   */
   void Add(const KeyType &key, const ValueType &value, const KeyComparator &comparator);
 
+  /**
+   * 查找叶节点是否有某一key，查找到放到value中，并返回true
+   * 查找不到则返回false
+   * @param key
+   * @param comparator
+   * @param value
+   * @return
+   */
   auto LeafFind(const KeyType &key, const KeyComparator &comparator, ValueType *value) const -> bool;
 
   /**

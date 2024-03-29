@@ -99,7 +99,9 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   }
 
   /**
-   * 二分查找，满足array[i].first <= key && array[i +1].first > key
+   * 二分查找，满足array[i].first <= key && array[i +1 ].first > key;
+   * 如果key比所有都大，返回array[size - 1]
+   * 如果key比所有都小，返回array[0]
    * @param key
    * @param comparator
    * @return 要查找的下一个page的id

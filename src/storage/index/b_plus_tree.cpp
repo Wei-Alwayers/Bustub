@@ -43,7 +43,7 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn) -> bool {
   BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
   auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
-  if(root_page->root_page_id_ != INVALID_PAGE_ID){
+  if(root_page->root_page_id_ == INVALID_PAGE_ID){
     // 树是空的
     return false;
   }
@@ -58,10 +58,10 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   }
   // 查找到叶节点
   auto leaf_page = guard.template As<LeafPage>();
-  ValueType *value = nullptr;
-  if(leaf_page->LeafFind(key, comparator_, value)){
+  ValueType value;
+  if(leaf_page->LeafFind(key, comparator_, &value)){
     // 找到该key
-    result->push_back(*value);
+    result->push_back(value);
     return true;
   }
   return false;
@@ -89,17 +89,34 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
   if(root_page->root_page_id_ == INVALID_PAGE_ID){
     // B+树是空的，插入第一条数据，创建一个新page
-    bpm_->NewPage(&root_page->root_page_id_);
+    bpm_->NewPageGuarded(&root_page->root_page_id_);
     // 创建leaf node
     guard = bpm_->FetchPageBasic(root_page->root_page_id_);
-    auto page_as_leaf = guard.AsMut<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>();
-    page_as_leaf->Init();
-    page_as_leaf->SetPageType(IndexPageType::LEAF_PAGE);
-    page_as_leaf->SetSize(0);
-    page_as_leaf->Add(key, value, comparator_);
+    auto leaf_page = guard.template AsMut<LeafPage>();
+    leaf_page->Init(leaf_max_size_);
+    leaf_page->SetPageType(IndexPageType::LEAF_PAGE);
+    leaf_page->SetSize(0);
+    leaf_page->Add(key, value, comparator_);
     return true;
   }
-  // TODO: simple insert
+  guard = bpm_->FetchPageBasic(root_page->root_page_id_);
+  auto page = guard.AsMut<BPlusTreePage>();
+  while(!page->IsLeafPage()){
+    // 顺着内部节点查询
+    auto internal_page = guard.template As<InternalPage>();
+    page_id_t page_id = internal_page->InternalFind(key, comparator_);
+    guard = bpm_->FetchPageBasic(page_id);
+    page = guard.AsMut<BPlusTreePage>();
+  }
+  // 查找到叶节点
+  auto leaf_page = guard.template AsMut<LeafPage>();
+  ValueType find_value;
+  if(leaf_page->LeafFind(key, comparator_, &find_value)){
+    // 该key已经存在
+    return false;
+  }
+  leaf_page->Add(key, value, comparator_);
+  return true;
   // Declaration of context instance.
   Context ctx;
   (void)ctx;
