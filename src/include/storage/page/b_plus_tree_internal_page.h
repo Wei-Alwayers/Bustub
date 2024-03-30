@@ -121,7 +121,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    * @param index
    * @param page_id
    */
-  void Add(int index, const page_id_t page_id);
+//  void Add(int index, const page_id_t page_id);
 
   /**
    * 像array插入元素，插入后保持顺序
@@ -130,6 +130,8 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    * @param comparator
    */
   void Add(const KeyType key, const page_id_t page_id, const KeyComparator comparator);
+
+  static void Redistribute(BPlusTreeInternalPage *page, BPlusTreeInternalPage *new_page);
  private:
   // Flexible array member for page data.
   MappingType array_[0];

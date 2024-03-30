@@ -82,11 +82,11 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(int index, const KeyType key, const  pa
   SetSize(GetSize() + 1);
 }
 
-INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(int index,  const  page_id_t page_id){
-  array_[index].second = page_id;
-  SetSize(GetSize() + 1);
-}
+//INDEX_TEMPLATE_ARGUMENTS
+//void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(int index,  const  page_id_t page_id){
+//  array_[index].second = page_id;
+//  SetSize(GetSize() + 1);
+//}
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(const KeyType key, const page_id_t page_id, const KeyComparator comparator){
@@ -99,6 +99,16 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(const KeyType key, const page_id_t page
   array_[i + 1].first = key;
   array_[i + 1].second = page_id;
   SetSize(GetSize() + 1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Redistribute(BPlusTreeInternalPage *page, BPlusTreeInternalPage *new_page){
+  int half_size = page->GetMaxSize() / 2;
+  for(int i = 0; i < page->GetMaxSize() - half_size; i++){
+    new_page->array_[i] = page->array_[i + half_size];
+  }
+  page->SetSize(half_size);
+  new_page->SetSize(page->GetMaxSize() - half_size);
 }
 
 // valuetype for internalNode should be page id_t
