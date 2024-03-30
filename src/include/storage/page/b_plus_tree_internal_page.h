@@ -108,8 +108,28 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    */
   auto InternalFind(const KeyType &key, const KeyComparator &comparator) const -> page_id_t;
 
+  /**
+   * 指定位置插入元素
+   * @param index
+   * @param key
+   * @param page_id
+   */
   void Add(int index, const KeyType key, const page_id_t page_id);
+
+  /**
+   * array[0]插入元素，没有key
+   * @param index
+   * @param page_id
+   */
   void Add(int index, const page_id_t page_id);
+
+  /**
+   * 像array插入元素，插入后保持顺序
+   * @param key
+   * @param page_id
+   * @param comparator
+   */
+  void Add(const KeyType key, const page_id_t page_id, const KeyComparator comparator);
  private:
   // Flexible array member for page data.
   MappingType array_[0];

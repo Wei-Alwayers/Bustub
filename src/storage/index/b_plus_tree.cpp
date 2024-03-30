@@ -65,12 +65,6 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
     return true;
   }
   return false;
-
-
-  // Declaration of context instance.
-  Context ctx;
-  (void)ctx;
-  return false;
 }
 
 /*****************************************************************************
@@ -85,26 +79,33 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *txn) -> bool {
-  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+//  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  WritePageGuard guard = bpm_->FetchPageWrite(header_page_id_);
   auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
   if(root_page->root_page_id_ == INVALID_PAGE_ID){
     // B+树是空的，插入第一条数据，创建一个新page
     bpm_->NewPageGuarded(&root_page->root_page_id_);
     // 创建leaf node
-    guard = bpm_->FetchPageBasic(root_page->root_page_id_);
-    auto leaf_page = guard.template AsMut<LeafPage>();
+    WritePageGuard leaf_guard = bpm_->FetchPageWrite(root_page->root_page_id_);
+    auto leaf_page = leaf_guard.template AsMut<LeafPage>();
     leaf_page->Init(leaf_max_size_);
     leaf_page->SetNextPageId(INVALID_PAGE_ID);
     leaf_page->Add(key, value, comparator_);
     return true;
   }
-  guard = bpm_->FetchPageBasic(root_page->root_page_id_);
+  // header page放到ctx中
+  Context ctx;
+  ctx.root_page_id_ = root_page->root_page_id_;
+  ctx.header_page_ = std::move(guard);
+
+  guard = bpm_->FetchPageWrite(root_page->root_page_id_);
   auto page = guard.AsMut<BPlusTreePage>();
   while(!page->IsLeafPage()){
     // 顺着内部节点查询
     auto internal_page = guard.template As<InternalPage>();
     page_id_t page_id = internal_page->InternalFind(key, comparator_);
-    guard = bpm_->FetchPageBasic(page_id);
+    ctx.write_set_.push_back(std::move(guard)); // guard更新之前把它internal page放到ctx中
+    guard = bpm_->FetchPageWrite(page_id);
     page = guard.AsMut<BPlusTreePage>();
   }
   // 查找到叶节点
@@ -116,6 +117,29 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   }
   leaf_page->Add(key, value, comparator_);
   if(leaf_page->GetSize() == leaf_page->GetMaxSize()){
+    if(guard.PageId() == root_page->root_page_id_){
+      // 根叶节点满了
+      // TODO：叶节点split可以封装为函数
+      // 新建leaf node
+      page_id_t new_page_id;
+      BasicPageGuard new_guard = bpm_->NewPageGuarded(&new_page_id);
+      auto new_leaf_page = new_guard.template AsMut<LeafPage>();
+      new_leaf_page->Init(leaf_max_size_);
+      new_leaf_page->SetNextPageId(INVALID_PAGE_ID);
+      // Redistribute leaf page
+      LeafPage::Redistribute(leaf_page, new_leaf_page);
+      // 新建parent node作为新的root node
+      page_id_t new_root_id;
+      BasicPageGuard new_root_guard = bpm_->NewPageGuarded(&new_root_id);
+      auto new_root_page = new_root_guard.template AsMut<InternalPage>();
+      new_root_page->Init(internal_max_size_);
+      new_root_page->Add(0, guard.PageId());
+      new_root_page->Add(1, new_leaf_page->KeyAt(0), new_page_id);
+      // 修改root值
+      root_page->root_page_id_ = new_root_id;
+      return true;
+    }
+    // 非根节点，说明有parent节点
     // 新建leaf node
     page_id_t new_page_id;
     BasicPageGuard new_guard = bpm_->NewPageGuarded(&new_page_id);
@@ -124,19 +148,16 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     new_leaf_page->SetNextPageId(INVALID_PAGE_ID);
     // Redistribute leaf page
     LeafPage::Redistribute(leaf_page, new_leaf_page);
-    // 新建parent node作为新的root node
-    page_id_t new_root_id;
-    BasicPageGuard new_root_guard = bpm_->NewPageGuarded(&new_root_id);
-    auto new_root_page = new_root_guard.template AsMut<InternalPage>();
-    new_root_page->Init(internal_max_size_);
-    new_root_page->Add(0, guard.PageId());
-    new_root_page->Add(1, new_leaf_page->KeyAt(0), new_page_id);
-    // 修改root值
-    root_page->root_page_id_ = new_root_id;
+    // 获取parent节点
+    WritePageGuard parent_guard = std::move(ctx.write_set_.back());
+    ctx.write_set_.pop_back();
+    auto parent_page = parent_guard.template AsMut<InternalPage>();
+    parent_page->Add(new_leaf_page->KeyAt(0), new_page_id, comparator_);
+
+
   }
   return true;
-  // Declaration of context instance.
-  Context ctx;
+
   (void)ctx;
   return false;
 }

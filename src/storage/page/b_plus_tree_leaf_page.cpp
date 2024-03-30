@@ -59,6 +59,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Add(const KeyType &key, const ValueType &value,
   array_[size].second = value;
   size++;
   SetSize(size);
+  // TODO: 不需要每次排序
   // 使用Lambda表达式指定比较方式，比较数组的 first 元素
   std::sort(array_, array_ + size, [&comparator](const auto &a, const auto &b) {
     // 从小到大排列

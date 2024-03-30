@@ -88,6 +88,19 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(int index,  const  page_id_t page_id){
   SetSize(GetSize() + 1);
 }
 
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(const KeyType key, const page_id_t page_id, const KeyComparator comparator){
+  int size = GetSize();
+  int i = size - 1;
+  while (i >= 1 && comparator(key, array_[i].first) < 0){
+    array_[i + 1] = array_[i];
+    i--;
+  }
+  array_[i + 1].first = key;
+  array_[i + 1].second = page_id;
+  SetSize(GetSize() + 1);
+}
+
 // valuetype for internalNode should be page id_t
 template class BPlusTreeInternalPage<GenericKey<4>, page_id_t, GenericComparator<4>>;
 template class BPlusTreeInternalPage<GenericKey<8>, page_id_t, GenericComparator<8>>;
