@@ -189,6 +189,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
       auto grandparent_page = grandparent_guard.template AsMut<InternalPage>();
       grandparent_page->Add(new_internal_page->KeyAt(0), new_internal_guard.PageId(), comparator_);
       parent_page = grandparent_page;
+      parent_guard = std::move(grandparent_guard);
     }
   }
   return true;
