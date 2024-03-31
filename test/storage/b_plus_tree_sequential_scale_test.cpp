@@ -49,13 +49,13 @@ TEST(BPlusTreeTests, ScaleTest) {  // NOLINT
 
   int64_t scale = 5000;
   std::vector<int64_t> keys;
-  for (int64_t key = 1; key < scale; key++) {
+  for (int64_t key = scale - 1; key >= 0; key--) {
     keys.push_back(key);
   }
 
   // randomized the insertion order
   auto rng = std::default_random_engine{};
-  std::shuffle(keys.begin(), keys.end(), rng);
+//  std::shuffle(keys.begin(), keys.end(), rng);
   // 打印keys
   std::cout << "Keys: ";
   for (const auto &key : keys) {

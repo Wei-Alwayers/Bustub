@@ -133,6 +133,9 @@ void BPLUSTREE_TYPE::SplitLeafNode(Context &ctx, WritePageGuard &guard) {
   new_leaf_page->SetNextPageId(INVALID_PAGE_ID);
   // Redistribute leaf page
   LeafPage::Redistribute(leaf_page, new_leaf_page);
+  // 设置next page id
+  new_leaf_page->SetNextPageId(leaf_page->GetNextPageId());
+  leaf_page->SetNextPageId(new_page_id);
   if (guard.PageId() == ctx.root_page_id_) {
     // 根叶节点满了
     // 新建parent node作为新的root node
