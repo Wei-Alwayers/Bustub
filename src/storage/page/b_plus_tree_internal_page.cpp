@@ -82,17 +82,11 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(int index, const KeyType key, const  pa
   SetSize(GetSize() + 1);
 }
 
-//INDEX_TEMPLATE_ARGUMENTS
-//void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(int index,  const  page_id_t page_id){
-//  array_[index].second = page_id;
-//  SetSize(GetSize() + 1);
-//}
-
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(const KeyType key, const page_id_t page_id, const KeyComparator comparator){
   int size = GetSize();
   int i = size - 1;
-  while (i >= 1 && comparator(key, array_[i].first) < 0){
+  while (i >= 0 && comparator(key, array_[i].first) < 0){
     array_[i + 1] = array_[i];
     i--;
   }
@@ -102,13 +96,26 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(const KeyType key, const page_id_t page
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Redistribute(BPlusTreeInternalPage *page, BPlusTreeInternalPage *new_page){
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RedistributeWithInsert(BPlusTreeInternalPage *page, BPlusTreeInternalPage *new_page, const KeyType key, const page_id_t page_id, const KeyComparator comparator){
   int half_size = page->GetMaxSize() / 2;
+  bool is_not_balance = false;
+  if(comparator(key, page->array_[half_size].first) > 0 && page->GetMaxSize() % 2 == 1){
+    // 可能会不balance
+    half_size++;
+    is_not_balance = true;
+  }
   for(int i = 0; i < page->GetMaxSize() - half_size; i++){
     new_page->array_[i] = page->array_[i + half_size];
   }
   page->SetSize(half_size);
   new_page->SetSize(page->GetMaxSize() - half_size);
+  // 判断新的key插入哪
+  if(is_not_balance || comparator(key, new_page->array_[0].first) > 0){
+    new_page->Add(key, page_id, comparator);
+  }
+  else{
+    page->Add(key, page_id, comparator);
+  }
 }
 
 // valuetype for internalNode should be page id_t

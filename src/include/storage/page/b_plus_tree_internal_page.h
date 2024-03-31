@@ -131,7 +131,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    */
   void Add(const KeyType key, const page_id_t page_id, const KeyComparator comparator);
 
-  static void Redistribute(BPlusTreeInternalPage *page, BPlusTreeInternalPage *new_page);
+  static void RedistributeWithInsert(BPlusTreeInternalPage *page, BPlusTreeInternalPage *new_page, const KeyType key, const page_id_t page_id, const KeyComparator comparator);
  private:
   // Flexible array member for page data.
   MappingType array_[0];

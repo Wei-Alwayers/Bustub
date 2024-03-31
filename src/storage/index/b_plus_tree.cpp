@@ -117,84 +117,84 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   }
   leaf_page->Add(key, value, comparator_);
   if(leaf_page->GetSize() == leaf_page->GetMaxSize()){
-    if(guard.PageId() == root_page->root_page_id_){
-      // 根叶节点满了
-      // TODO：叶节点split可以封装为函数
-      // 新建leaf node
-      page_id_t new_page_id;
-      BasicPageGuard new_guard = bpm_->NewPageGuarded(&new_page_id);
-      auto new_leaf_page = new_guard.template AsMut<LeafPage>();
-      new_leaf_page->Init(leaf_max_size_);
-      new_leaf_page->SetNextPageId(INVALID_PAGE_ID);
-      // Redistribute leaf page
-      LeafPage::Redistribute(leaf_page, new_leaf_page);
+    SplitLeafNode(ctx, guard);
+  }
+  return true;
+
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::SplitLeafNode(Context &ctx, WritePageGuard &guard){
+  auto leaf_page = guard.template AsMut<LeafPage>();
+  // 新建leaf node
+  page_id_t new_page_id;
+  BasicPageGuard new_guard = bpm_->NewPageGuarded(&new_page_id);
+  auto new_leaf_page = new_guard.template AsMut<LeafPage>();
+  new_leaf_page->Init(leaf_max_size_);
+  new_leaf_page->SetNextPageId(INVALID_PAGE_ID);
+  // Redistribute leaf page
+  LeafPage::Redistribute(leaf_page, new_leaf_page);
+  if(guard.PageId() == ctx.root_page_id_){
+    // 根叶节点满了
+    // 新建parent node作为新的root node
+    page_id_t new_root_id;
+    BasicPageGuard new_root_guard = bpm_->NewPageGuarded(&new_root_id);
+    auto new_root_page = new_root_guard.template AsMut<InternalPage>();
+    new_root_page->Init(internal_max_size_);
+    new_root_page->Add(0, leaf_page->KeyAt(0), guard.PageId());
+    new_root_page->Add(1, new_leaf_page->KeyAt(0), new_page_id);
+    // 修改root值
+    auto root_page = ctx.header_page_->AsMut<BPlusTreeHeaderPage>();
+    root_page->root_page_id_ = new_root_id;
+  }
+  else {
+    // 非根节点，说明有parent节点
+    // 获取parent节点
+    WritePageGuard parent_guard = std::move(ctx.write_set_.back());
+    ctx.write_set_.pop_back();
+    KeyType key = new_leaf_page->KeyAt(0);
+    InsertIntoInternalNode(parent_guard, key, new_page_id, ctx);
+  }
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::InsertIntoInternalNode(WritePageGuard &guard, const KeyType key, const page_id_t page_id, Context &ctx){
+  auto page = guard.template AsMut<InternalPage>();
+  // 先检查是否已满
+  if(page->GetSize() == page->GetMaxSize()){
+    // 新建internal node
+    page_id_t new_internal_page_id;
+    BasicPageGuard new_internal_guard = bpm_->NewPageGuarded(&new_internal_page_id);
+    auto new_internal_page = new_internal_guard.template AsMut<InternalPage>();
+    new_internal_page->Init(internal_max_size_);
+    // Redistribute internal page
+    InternalPage::RedistributeWithInsert(page, new_internal_page, key, page_id, comparator_);
+    // 检查是否为根节点
+    auto root_page = ctx.header_page_->AsMut<BPlusTreeHeaderPage>();
+    if (guard.PageId() == root_page->root_page_id_) {
       // 新建parent node作为新的root node
       page_id_t new_root_id;
       BasicPageGuard new_root_guard = bpm_->NewPageGuarded(&new_root_id);
       auto new_root_page = new_root_guard.template AsMut<InternalPage>();
       new_root_page->Init(internal_max_size_);
-      new_root_page->Add(0, leaf_page->KeyAt(0), guard.PageId());
-      new_root_page->Add(1, new_leaf_page->KeyAt(0), new_page_id);
+      new_root_page->Add(0, page->KeyAt(0), guard.PageId());
+      new_root_page->Add(1, new_internal_page->KeyAt(0), new_internal_guard.PageId());
       // 修改root值
       root_page->root_page_id_ = new_root_id;
-      return true;
     }
-    // 非根节点，说明有parent节点
-    // 新建leaf node
-    page_id_t new_page_id;
-    BasicPageGuard new_guard = bpm_->NewPageGuarded(&new_page_id);
-    auto new_leaf_page = new_guard.template AsMut<LeafPage>();
-    new_leaf_page->Init(leaf_max_size_);
-    new_leaf_page->SetNextPageId(INVALID_PAGE_ID);
-    // Redistribute leaf page
-    LeafPage::Redistribute(leaf_page, new_leaf_page);
-    // 获取parent节点
-    WritePageGuard parent_guard = std::move(ctx.write_set_.back());
-    ctx.write_set_.pop_back();
-    auto parent_page = parent_guard.template AsMut<InternalPage>();
-    parent_page->Add(new_leaf_page->KeyAt(0), new_page_id, comparator_);
-    while (parent_page->GetSize() == parent_page->GetMaxSize()){
-      // 检查是否为根节点
-      if(parent_guard.PageId() == root_page->root_page_id_){
-        // 新建internal node
-        page_id_t new_internal_page_id;
-        BasicPageGuard new_internal_guard = bpm_->NewPageGuarded(&new_internal_page_id);
-        auto new_internal_page = new_internal_guard.template AsMut<InternalPage>();
-        new_internal_page->Init(internal_max_size_);
-        // Redistribute internal page
-        InternalPage::Redistribute(parent_page, new_internal_page);
-        // 新建parent node作为新的root node
-        page_id_t new_root_id;
-        BasicPageGuard new_root_guard = bpm_->NewPageGuarded(&new_root_id);
-        auto new_root_page = new_root_guard.template AsMut<InternalPage>();
-        new_root_page->Init(internal_max_size_);
-        new_root_page->Add(0, parent_page->KeyAt(0), parent_guard.PageId());
-        new_root_page->Add(1, new_internal_page->KeyAt(0), new_internal_guard.PageId());
-        // 修改root值
-        root_page->root_page_id_ = new_root_id;
-        return true;
-      }
-      // 不是根节点
-      // 不是根节点
-      // 新建internal node
-      page_id_t new_internal_page_id;
-      BasicPageGuard new_internal_guard = bpm_->NewPageGuarded(&new_internal_page_id);
-      auto new_internal_page = new_internal_guard.template AsMut<InternalPage>();
-      new_internal_page->Init(internal_max_size_);
-      // Redistribute internal page
-      InternalPage::Redistribute(parent_page, new_internal_page);
+    else{
       // 获取parent节点
-      WritePageGuard grandparent_guard = std::move(ctx.write_set_.back());
+      WritePageGuard parent_guard = std::move(ctx.write_set_.back());
       ctx.write_set_.pop_back();
-      auto grandparent_page = grandparent_guard.template AsMut<InternalPage>();
-      grandparent_page->Add(new_internal_page->KeyAt(0), new_internal_guard.PageId(), comparator_);
-      parent_page = grandparent_page;
-      parent_guard = std::move(grandparent_guard);
+      // 向parent插入数据
+      InsertIntoInternalNode(parent_guard, new_internal_page->KeyAt(0), new_internal_guard.PageId(), ctx);
     }
   }
-  return true;
-
+  else{
+    page->Add(key, page_id, comparator_);
+  }
 }
+
 
 /*****************************************************************************
  * REMOVE
