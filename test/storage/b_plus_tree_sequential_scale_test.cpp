@@ -58,7 +58,7 @@ TEST(BPlusTreeTests, ScaleTest) {  // NOLINT
   std::shuffle(keys.begin(), keys.end(), rng);
   // 打印keys
   std::cout << "Keys: ";
-  for (const auto& key : keys) {
+  for (const auto &key : keys) {
     std::cout << key << ", ";
   }
   std::cout << std::endl;

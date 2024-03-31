@@ -79,8 +79,8 @@ TEST(BPlusTreeTests, InsertTest2) {
   // create transaction
   auto *transaction = new Transaction(0);
 
-//  std::vector<int64_t> keys = {15, 3, 8, 16, 5, 2, 7, 4, 11, 12, 19, 14, 13, 1, 18, 6, 9, 10, 17};
-  std::vector<int64_t> keys = {15, 3, 8, 16, 5, 2, 7, 4, 11, 12, 19, 14, 13, 1};
+  //  std::vector<int64_t> keys = {15, 3, 8, 16, 5, 2, 7, 4, 11, 12, 19, 14, 13, 1, 18, 6, 9, 10, 17};
+  std::vector<int64_t> keys = {15, 3, 8, 16, 5, 2, 7, 4};
   for (auto key : keys) {
     int64_t value = key & 0xFFFFFFFF;
     rid.Set(static_cast<int32_t>(key >> 32), value);

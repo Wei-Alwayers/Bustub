@@ -25,28 +25,24 @@ namespace bustub {
  */
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(int max_size) {
-    SetPageType(IndexPageType::INTERNAL_PAGE);
-    SetSize(0);
-    SetMaxSize(max_size);
+  SetPageType(IndexPageType::INTERNAL_PAGE);
+  SetSize(0);
+  SetMaxSize(max_size);
 }
 /*
  * Helper method to get/set the key associated with input "index"(a.k.a
  * array offset)
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyAt(int index) const -> KeyType {
-  return array_[index].first;
-}
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyAt(int index) const -> KeyType { return array_[index].first; }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) {
-  array_[index].first = key;
-}
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) { array_[index].first = key; }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const -> int{
-  for(int i = 0; i < GetSize(); i++){
-    if(array_[i].second == value){
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const -> int {
+  for (int i = 0; i < GetSize(); i++) {
+    if (array_[i].second == value) {
       return i;
     }
   }
@@ -58,12 +54,11 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const ->
  * offset)
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType {
-  return array_[index].second;
-}
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType { return array_[index].second; }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InternalFind(const KeyType &key, const KeyComparator &comparator) const -> page_id_t{
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InternalFind(const KeyType &key, const KeyComparator &comparator) const
+    -> page_id_t {
   // 二分查找
   int low = 1;  // 数组从索引1开始存储key
   int size = GetSize();
@@ -86,10 +81,10 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InternalFind(const KeyType &key, const KeyC
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(const KeyType key, const page_id_t page_id, const KeyComparator comparator){
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(const KeyType key, const page_id_t page_id, const KeyComparator comparator) {
   int size = GetSize();
   int i = size - 1;
-  while (i >= 0 && comparator(key, array_[i].first) < 0){
+  while (i >= 0 && comparator(key, array_[i].first) < 0) {
     array_[i + 1] = array_[i];
     i--;
   }
@@ -99,24 +94,25 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(const KeyType key, const page_id_t page
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RedistributeWithInsert(BPlusTreeInternalPage *page, BPlusTreeInternalPage *new_page, const KeyType key, const page_id_t page_id, const KeyComparator comparator){
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RedistributeWithInsert(BPlusTreeInternalPage *page,
+                                                            BPlusTreeInternalPage *new_page, const KeyType key,
+                                                            const page_id_t page_id, const KeyComparator comparator) {
   int half_size = page->GetMaxSize() / 2;
   bool is_not_balance = false;
-  if(comparator(key, page->array_[half_size].first) > 0 && page->GetMaxSize() % 2 == 1){
+  if (comparator(key, page->array_[half_size].first) > 0 && page->GetMaxSize() % 2 == 1) {
     // 可能会不balance
     half_size++;
     is_not_balance = true;
   }
-  for(int i = 0; i < page->GetMaxSize() - half_size; i++){
+  for (int i = 0; i < page->GetMaxSize() - half_size; i++) {
     new_page->array_[i] = page->array_[i + half_size];
   }
   page->SetSize(half_size);
   new_page->SetSize(page->GetMaxSize() - half_size);
   // 判断新的key插入哪
-  if(is_not_balance || comparator(key, new_page->array_[0].first) > 0){
+  if (is_not_balance || comparator(key, new_page->array_[0].first) > 0) {
     new_page->Add(key, page_id, comparator);
-  }
-  else{
+  } else {
     page->Add(key, page_id, comparator);
   }
 }
