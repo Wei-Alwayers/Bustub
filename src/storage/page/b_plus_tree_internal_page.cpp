@@ -43,6 +43,16 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) {
   array_[index].first = key;
 }
 
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const -> int{
+  for(int i = 0; i < GetSize(); i++){
+    if(array_[i].second == value){
+      return i;
+    }
+  }
+  return -1;
+}
+
 /*
  * Helper method to get the value associated with input "index"(a.k.a array
  * offset)
@@ -73,13 +83,6 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InternalFind(const KeyType &key, const KeyC
     }
   }
   return static_cast<page_id_t>(array_[high].second);  // 返回找到的索引
-}
-
-INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Add(int index, const KeyType key, const  page_id_t page_id){
-  array_[index].first = key;
-  array_[index].second = page_id;
-  SetSize(GetSize() + 1);
 }
 
 INDEX_TEMPLATE_ARGUMENTS

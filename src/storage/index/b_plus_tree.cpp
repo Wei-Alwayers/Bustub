@@ -141,8 +141,8 @@ void BPLUSTREE_TYPE::SplitLeafNode(Context &ctx, WritePageGuard &guard){
     BasicPageGuard new_root_guard = bpm_->NewPageGuarded(&new_root_id);
     auto new_root_page = new_root_guard.template AsMut<InternalPage>();
     new_root_page->Init(internal_max_size_);
-    new_root_page->Add(0, leaf_page->KeyAt(0), guard.PageId());
-    new_root_page->Add(1, new_leaf_page->KeyAt(0), new_page_id);
+    new_root_page->Add(leaf_page->KeyAt(0), guard.PageId(), comparator_);
+    new_root_page->Add(new_leaf_page->KeyAt(0), new_page_id, comparator_);
     // 修改root值
     auto root_page = ctx.header_page_->AsMut<BPlusTreeHeaderPage>();
     root_page->root_page_id_ = new_root_id;
@@ -152,8 +152,13 @@ void BPLUSTREE_TYPE::SplitLeafNode(Context &ctx, WritePageGuard &guard){
     // 获取parent节点
     WritePageGuard parent_guard = std::move(ctx.write_set_.back());
     ctx.write_set_.pop_back();
-    KeyType key = new_leaf_page->KeyAt(0);
-    InsertIntoInternalNode(parent_guard, key, new_page_id, ctx);
+    // 更新old_page_id的key
+    auto parent_page = parent_guard.template AsMut<InternalPage>();
+    int index = parent_page->ValueIndex(guard.PageId());
+    parent_page->SetKeyAt(index, leaf_page->KeyAt(0));
+
+    KeyType new_page_key = new_leaf_page->KeyAt(0);
+    InsertIntoInternalNode(parent_guard, new_page_key, new_page_id, ctx);
   }
 }
 
@@ -177,8 +182,8 @@ void BPLUSTREE_TYPE::InsertIntoInternalNode(WritePageGuard &guard, const KeyType
       BasicPageGuard new_root_guard = bpm_->NewPageGuarded(&new_root_id);
       auto new_root_page = new_root_guard.template AsMut<InternalPage>();
       new_root_page->Init(internal_max_size_);
-      new_root_page->Add(0, page->KeyAt(0), guard.PageId());
-      new_root_page->Add(1, new_internal_page->KeyAt(0), new_internal_guard.PageId());
+      new_root_page->Add( page->KeyAt(0), guard.PageId(), comparator_);
+      new_root_page->Add(new_internal_page->KeyAt(0), new_internal_guard.PageId(), comparator_);
       // 修改root值
       root_page->root_page_id_ = new_root_id;
     }
@@ -186,6 +191,10 @@ void BPLUSTREE_TYPE::InsertIntoInternalNode(WritePageGuard &guard, const KeyType
       // 获取parent节点
       WritePageGuard parent_guard = std::move(ctx.write_set_.back());
       ctx.write_set_.pop_back();
+      // 更新old_page_id的key
+      auto parent_page = parent_guard.template AsMut<InternalPage>();
+      int index = parent_page->ValueIndex(guard.PageId());
+      parent_page->SetKeyAt(index, page->KeyAt(0));
       // 向parent插入数据
       InsertIntoInternalNode(parent_guard, new_internal_page->KeyAt(0), new_internal_guard.PageId(), ctx);
     }

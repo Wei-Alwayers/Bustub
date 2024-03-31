@@ -56,12 +56,19 @@ TEST(BPlusTreeTests, ScaleTest) {  // NOLINT
   // randomized the insertion order
   auto rng = std::default_random_engine{};
   std::shuffle(keys.begin(), keys.end(), rng);
+  // 打印keys
+  std::cout << "Keys: ";
+  for (const auto& key : keys) {
+    std::cout << key << ", ";
+  }
+  std::cout << std::endl;
   for (auto key : keys) {
     int64_t value = key & 0xFFFFFFFF;
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
   }
+  std::cout << tree.DrawBPlusTree();
   std::vector<RID> rids;
   for (auto key : keys) {
     rids.clear();
