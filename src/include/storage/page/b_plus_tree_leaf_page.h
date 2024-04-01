@@ -77,7 +77,14 @@ class BPlusTreeLeafPage : public BPlusTreePage {
    */
   auto LeafFind(const KeyType &key, const KeyComparator &comparator, ValueType *value) const -> bool;
 
+  /**
+   * 将page的后一半数据分到new page中
+   * @param page
+   * @param new_page
+   */
   static void Redistribute(BPlusTreeLeafPage *page, BPlusTreeLeafPage *new_page);
+
+  void Remove(const KeyType &key, const KeyComparator &comparator);
 
   /**
    * @brief for test only return a string representing all keys in

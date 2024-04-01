@@ -216,9 +216,50 @@ void BPLUSTREE_TYPE::InsertIntoInternalNode(WritePageGuard &guard, const KeyType
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
-  // Declaration of context instance.
+  WritePageGuard guard = bpm_->FetchPageWrite(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  if (root_page->root_page_id_ == INVALID_PAGE_ID) {
+    // 树是空的
+    return;
+  }
+  // header page放到ctx中
   Context ctx;
-  (void)ctx;
+  ctx.root_page_id_ = root_page->root_page_id_;
+  ctx.header_page_ = std::move(guard);
+
+  guard = bpm_->FetchPageWrite(root_page->root_page_id_);
+  auto page = guard.AsMut<BPlusTreePage>();
+  while (!page->IsLeafPage()) {
+    // 顺着内部节点查询
+    auto internal_page = guard.template As<InternalPage>();
+    page_id_t page_id = internal_page->InternalFind(key, comparator_);
+    ctx.write_set_.push_back(std::move(guard));  // guard更新之前把它internal page放到ctx中
+    guard = bpm_->FetchPageWrite(page_id);
+    page = guard.AsMut<BPlusTreePage>();
+  }
+  // 查找到叶节点
+  auto leaf_page = guard.template AsMut<LeafPage>();
+  ValueType find_value;
+  if (!leaf_page->LeafFind(key, comparator_, &find_value)) {
+    // 该key不存在
+    return;
+  }
+  leaf_page->Remove(key, comparator_);
+  if(leaf_page->GetSize() < leaf_page->GetMinSize()){
+    // 需要merge
+  }
+  else{
+    // 获取parent节点
+    WritePageGuard parent_guard = std::move(ctx.write_set_.back());
+    ctx.write_set_.pop_back();
+    // 更新old_page_id的key
+    auto parent_page = parent_guard.template AsMut<InternalPage>();
+    int index = parent_page->ValueIndex(guard.PageId());
+    parent_page->SetKeyAt(index, leaf_page->KeyAt(0));
+    // TODO: update也是一个递归性质的
+  }
+
+
 }
 
 /*****************************************************************************

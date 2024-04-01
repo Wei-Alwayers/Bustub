@@ -95,6 +95,30 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Redistribute(BPlusTreeLeafPage *page, BPlusTree
   new_page->SetSize(page->GetMaxSize() - half_size);
 }
 
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::Remove(const KeyType &key, const KeyComparator &comparator){
+  // 二分查找
+  int low = 0;
+  int high = GetSize() - 1;
+
+  while (low <= high) {
+    int mid = low + (high - low) / 2;
+    int cmp = comparator(array_[mid].first, key);
+    if (cmp < 0) {
+      low = mid + 1;
+    } else if (cmp > 0) {
+      high = mid - 1;
+    } else {
+      // 如果找到key，删除对应元素
+      for(int i = mid + 1; i < GetSize(); i++){
+        array_[i] = array_[i + 1];
+      }
+      SetSize(GetSize() - 1);
+      return;
+    }
+  }
+}
+
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;
 template class BPlusTreeLeafPage<GenericKey<8>, RID, GenericComparator<8>>;
 template class BPlusTreeLeafPage<GenericKey<16>, RID, GenericComparator<16>>;
