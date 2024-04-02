@@ -110,13 +110,35 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Remove(const KeyType &key, const KeyComparator 
       high = mid - 1;
     } else {
       // 如果找到key，删除对应元素
-      for(int i = mid + 1; i < GetSize(); i++){
+      for(int i = mid; i < GetSize() - 1; i++){
         array_[i] = array_[i + 1];
       }
       SetSize(GetSize() - 1);
       return;
     }
   }
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveOneKey(BPlusTreeLeafPage *page, BPlusTreeLeafPage *sibling_page){
+  page->array_[page->GetSize()] = sibling_page->array_[0];
+  for(int i = 0; i < sibling_page->GetSize(); i++){
+    sibling_page->array_[i] = sibling_page->array_[i + 1];
+  }
+  page->SetSize(page->GetSize() + 1);
+  sibling_page->SetSize(sibling_page->GetSize() - 1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::LeafMerge(BPlusTreeLeafPage *page, BPlusTreeLeafPage *sibling_page){
+  int i = page->GetSize();
+  for(int j = 0; j < sibling_page->GetSize(); j++){
+    page->array_[i] = sibling_page->array_[j];
+    i++;
+  }
+  page->SetSize(page->GetSize() + sibling_page->GetSize());
+  sibling_page->SetSize(0);
+  page->SetNextPageId(sibling_page->GetNextPageId());
 }
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;

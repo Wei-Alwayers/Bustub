@@ -42,7 +42,7 @@ auto BPlusTreePage::GetMinSize() const -> int {
   if (page_type_ == IndexPageType::INTERNAL_PAGE) {
     return (max_size_ + 1) / 2;
   }
-  return 1;
+  return max_size_ / 2;
 }
 
 }  // namespace bustub

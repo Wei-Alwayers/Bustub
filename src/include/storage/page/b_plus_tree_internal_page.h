@@ -119,6 +119,17 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   static void RedistributeWithInsert(BPlusTreeInternalPage *page, BPlusTreeInternalPage *new_page, KeyType key,
                                      page_id_t page_id, KeyComparator comparator);
 
+  /**
+   * 按key删除一个元素
+   * @param key
+   * @param comparator
+   */
+  void Remove(KeyType key, KeyComparator comparator);
+
+  static void InternalMerge(BPlusTreeInternalPage *page, BPlusTreeInternalPage *sibling_page);
+
+  static void MoveOneKey(BPlusTreeInternalPage *page, BPlusTreeInternalPage *sibling_page);
+
  private:
   // Flexible array member for page data.
   MappingType array_[0];

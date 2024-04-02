@@ -84,7 +84,26 @@ class BPlusTreeLeafPage : public BPlusTreePage {
    */
   static void Redistribute(BPlusTreeLeafPage *page, BPlusTreeLeafPage *new_page);
 
+  /**
+   * 从page中按key删除元素
+   * @param key
+   * @param comparator
+   */
   void Remove(const KeyType &key, const KeyComparator &comparator);
+
+  /**
+   * 从sibling page把第一个元素分给page
+   * @param page
+   * @param sibling_page
+   */
+  static void MoveOneKey(BPlusTreeLeafPage *page, BPlusTreeLeafPage *sibling_page);
+
+  /**
+   * 将sibling page的所有元素都移动到page
+   * @param page
+   * @param sibling_page
+   */
+  static void LeafMerge(BPlusTreeLeafPage *page, BPlusTreeLeafPage *sibling_page);
 
   /**
    * @brief for test only return a string representing all keys in
