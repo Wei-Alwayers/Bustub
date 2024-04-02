@@ -334,7 +334,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
         if(internal_page->GetSize() + internal_sibling_page->GetSize() <= internal_page ->GetMaxSize()){
           // internal page merge
           KeyType internal_sibling_key = internal_sibling_page->KeyAt(0);
-          InternalPage::InternalMerge(parent_page, internal_sibling_page);
+          InternalPage::InternalMerge(internal_page, internal_sibling_page);
           // 删除sibling page
           internal_sibling_guard.Drop();
           bpm_->DeletePage(internal_sibling_page_id);
