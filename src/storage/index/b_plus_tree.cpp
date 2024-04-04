@@ -371,38 +371,35 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
         }
       }
       return;
-    } else {
-      // move 1 key from sibling page
-      LeafPage::MoveOneKey(leaf_page, leaf_sibling_page);
-      // 更新parent
-      int sibling_index = parent_page->ValueIndex(leaf_sibling_guard.PageId());
-      parent_page->SetKeyAt(sibling_index, leaf_sibling_page->KeyAt(0));
-      index = parent_page->ValueIndex(leaf_guard.PageId());
-      parent_page->SetKeyAt(index, leaf_page->KeyAt(0));
-      // 递归更新
-      UpdateInternalNode(std::move(parent_guard), ctx);
-      return;
     }
-
-  } else {
-    // 获取parent节点
-    WritePageGuard parent_guard = std::move(ctx.write_set_.back());
-    ctx.write_set_.pop_back();
-    // 更新old_page_id的key
-    auto parent_page = parent_guard.template AsMut<InternalPage>();
-    int index = parent_page->ValueIndex(guard.PageId());
-    if (comparator_(parent_page->KeyAt(index), leaf_page->KeyAt(0)) != 0) {
-      parent_page->SetKeyAt(index, leaf_page->KeyAt(0));
-      guard.Drop();
-      UpdateInternalNode(std::move(parent_guard), ctx);
-    }
+    // move 1 key from sibling page
+    LeafPage::MoveOneKey(leaf_page, leaf_sibling_page);
+    // 更新parent
+    int sibling_index = parent_page->ValueIndex(leaf_sibling_guard.PageId());
+    parent_page->SetKeyAt(sibling_index, leaf_sibling_page->KeyAt(0));
+    index = parent_page->ValueIndex(leaf_guard.PageId());
+    parent_page->SetKeyAt(index, leaf_page->KeyAt(0));
+    // 递归更新
+    UpdateInternalNode(std::move(parent_guard), ctx);
+    return;
+  }
+  // 获取parent节点
+  WritePageGuard parent_guard = std::move(ctx.write_set_.back());
+  ctx.write_set_.pop_back();
+  // 更新old_page_id的key
+  auto parent_page = parent_guard.template AsMut<InternalPage>();
+  int index = parent_page->ValueIndex(guard.PageId());
+  if (comparator_(parent_page->KeyAt(index), leaf_page->KeyAt(0)) != 0) {
+    parent_page->SetKeyAt(index, leaf_page->KeyAt(0));
+    guard.Drop();
+    UpdateInternalNode(std::move(parent_guard), ctx);
   }
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::UpdateInternalNode(WritePageGuard child_guard, Context &ctx) {
   auto child_page = child_guard.template AsMut<InternalPage>();
-  if(ctx.write_set_.empty()){
+  if (ctx.write_set_.empty()) {
     return;
   }
   auto parent_guard = std::move(ctx.write_set_.back());
