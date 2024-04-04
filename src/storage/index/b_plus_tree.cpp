@@ -281,13 +281,14 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
     auto leaf_sibling_page = leaf_sibling_guard.template AsMut<LeafPage>();
 
     if (leaf_sibling_page->GetSize() + leaf_page->GetSize() < leaf_page->GetMaxSize()) {
-      KeyType sibling_key = leaf_sibling_page->KeyAt(0);
       // merge
       LeafPage::LeafMerge(leaf_page, leaf_sibling_page);
       // 删除sibling page
       page_id_t sibling_page_id = leaf_sibling_guard.PageId();
       bpm_->DeletePage(sibling_page_id);
       // 更新parent page
+      int leaf_sibling_index = parent_page->ValueIndex(leaf_sibling_guard.PageId());
+      KeyType sibling_key = parent_page->KeyAt(leaf_sibling_index);
       parent_page->Remove(sibling_key, comparator_);
       int leaf_index = parent_page->ValueIndex(leaf_guard.PageId());
       parent_page->SetKeyAt(leaf_index, leaf_page->KeyAt(0));
@@ -332,21 +333,18 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
 
         if (internal_page->GetSize() + internal_sibling_page->GetSize() <= internal_page->GetMaxSize()) {
           // internal page merge
-          KeyType internal_sibling_key = internal_sibling_page->KeyAt(0);
           InternalPage::InternalMerge(internal_page, internal_sibling_page);
           // 删除sibling page
           bpm_->DeletePage(internal_sibling_page_id);
-          internal_sibling_guard.Drop();
           // 更新parent page
+          int internal_sibling_index = parent_page->ValueIndex(internal_sibling_guard.PageId());
+          KeyType internal_sibling_key = parent_page->KeyAt(internal_sibling_index);
+          internal_sibling_guard.Drop();
           parent_page->Remove(internal_sibling_key, comparator_);
           int internal_index = parent_page->ValueIndex(internal_guard.PageId());
           parent_page->SetKeyAt(internal_index, internal_page->KeyAt(0));
         } else {
-          if (internal_page->GetSize() < internal_sibling_page->GetSize()) {
-            InternalPage::MoveOneKey(internal_page, internal_sibling_page);
-          } else {
-            InternalPage::MoveOneKey(internal_sibling_page, internal_page);
-          }
+          InternalPage::MoveOneKey(internal_page, internal_sibling_page);
           // 更新parent
           int internal_sibling_index = parent_page->ValueIndex(internal_sibling_guard.PageId());
           parent_page->SetKeyAt(internal_sibling_index, internal_sibling_page->KeyAt(0));
@@ -362,11 +360,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       return;
     } else {
       // move 1 key from sibling page
-      if (leaf_page->GetSize() < leaf_sibling_page->GetSize()) {
-        LeafPage::MoveOneKey(leaf_page, leaf_sibling_page);
-      } else {
-        LeafPage::MoveOneKey(leaf_sibling_page, leaf_page);
-      }
+      LeafPage::MoveOneKey(leaf_page, leaf_sibling_page);
       // 更新parent
       int sibling_index = parent_page->ValueIndex(leaf_sibling_guard.PageId());
       parent_page->SetKeyAt(sibling_index, leaf_sibling_page->KeyAt(0));

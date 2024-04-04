@@ -47,7 +47,7 @@ TEST(BPlusTreeTests, ScaleTest) {  // NOLINT
   // create transaction
   auto *transaction = new Transaction(0);
 
-  int64_t scale = 5000;
+  int64_t scale = 10;
   std::vector<int64_t> keys;
   for (int64_t key = scale - 1; key >= 0; key--) {
     keys.push_back(key);

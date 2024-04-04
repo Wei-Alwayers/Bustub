@@ -40,7 +40,7 @@ TEST(BPlusTreeTests, DeleteTest1) {
   // create transaction
   auto *transaction = new Transaction(0);
 
-  std::vector<int64_t> keys = {1, 2, 3, 4, 5};
+  std::vector<int64_t> keys = {8, 3, 9, 6, 7, 4, 5, 0, 1, 2};
   for (auto key : keys) {
     int64_t value = key & 0xFFFFFFFF;
     rid.Set(static_cast<int32_t>(key >> 32), value);
@@ -60,7 +60,7 @@ TEST(BPlusTreeTests, DeleteTest1) {
     EXPECT_EQ(rids[0].GetSlotNum(), value);
   }
 
-  std::vector<int64_t> remove_keys = {1, 5, 2, 4, 3};
+  std::vector<int64_t> remove_keys = {8, 3, 9, 6, 7};
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
@@ -86,7 +86,7 @@ TEST(BPlusTreeTests, DeleteTest1) {
     }
   }
 
-  EXPECT_EQ(size, 0);
+  EXPECT_EQ(size, 5);
 
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete transaction;

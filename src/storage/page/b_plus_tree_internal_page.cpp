@@ -154,12 +154,23 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InternalMerge(BPlusTreeInternalPage *page, 
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveOneKey(BPlusTreeInternalPage *page, BPlusTreeInternalPage *sibling_page) {
-  page->array_[page->GetSize()] = sibling_page->array_[0];
-  for (int i = 0; i < sibling_page->GetSize(); i++) {
-    sibling_page->array_[i] = sibling_page->array_[i + 1];
+  if(page->GetSize() < sibling_page->GetSize()){
+    page->array_[page->GetSize()] = sibling_page->array_[0];
+    for (int i = 0; i < sibling_page->GetSize(); i++) {
+      sibling_page->array_[i] = sibling_page->array_[i + 1];
+    }
+    page->SetSize(page->GetSize() + 1);
+    sibling_page->SetSize(sibling_page->GetSize() - 1);
+  }else{
+    for (int i = sibling_page->GetSize(); i > 0; i--) {
+      sibling_page->array_[i] = sibling_page->array_[i - 1];
+    }
+    sibling_page->array_[0] = page->array_[page->GetSize() - 1];
+    page->SetSize(page->GetSize() - 1);
+    sibling_page->SetSize(sibling_page->GetSize() + 1);
   }
-  page->SetSize(page->GetSize() + 1);
-  sibling_page->SetSize(sibling_page->GetSize() - 1);
+
+
 }
 
 // valuetype for internalNode should be page id_t
