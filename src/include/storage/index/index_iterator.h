@@ -24,7 +24,7 @@ class IndexIterator {
   using LeafPage = BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>;
  public:
   // you may define your own constructor based on your member variables
-  IndexIterator(BasicPageGuard guard, int index, BufferPoolManager *bpm){
+  IndexIterator(ReadPageGuard guard, int index, BufferPoolManager *bpm){
     index_ = index;
     guard_ = std::move(guard);
     bpm_ = bpm;
@@ -45,7 +45,7 @@ class IndexIterator {
 
  private:
   // add your own private member variables here
-  BasicPageGuard guard_;
+  ReadPageGuard guard_;
   BufferPoolManager *bpm_;
   int index_ ;
 };

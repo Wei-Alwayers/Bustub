@@ -37,7 +37,7 @@ auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   }
   else{
     if(page->GetNextPageId() != INVALID_PAGE_ID){
-      guard_ = bpm_->FetchPageBasic(page->GetNextPageId());
+      guard_ = bpm_->FetchPageRead(page->GetNextPageId());
       index_ = 0;
     }
     else{
