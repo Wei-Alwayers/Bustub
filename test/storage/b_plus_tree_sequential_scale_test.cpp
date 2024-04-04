@@ -55,7 +55,7 @@ TEST(BPlusTreeTests, ScaleTest) {  // NOLINT
 
   // randomized the insertion order
   auto rng = std::default_random_engine{};
-//  std::shuffle(keys.begin(), keys.end(), rng);
+  std::shuffle(keys.begin(), keys.end(), rng);
   // 打印keys
   std::cout << "Keys: ";
   for (const auto &key : keys) {

@@ -422,7 +422,25 @@ void BPLUSTREE_TYPE::UpdateInternalNode(WritePageGuard &child_guard, Context &ct
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
+  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  if (root_page->root_page_id_ == INVALID_PAGE_ID) {
+    // 树是空的
+    throw Exception("The Tree is Empty!");
+  }
+  guard = bpm_->FetchPageBasic(root_page->root_page_id_);
+  auto page = guard.AsMut<BPlusTreePage>();
+  while (!page->IsLeafPage()) {
+    // 顺着内部节点查询
+    auto internal_page = guard.template As<InternalPage>();
+    page_id_t page_id = internal_page->ValueAt(0);
+    guard = bpm_->FetchPageBasic(page_id);
+    page = guard.AsMut<BPlusTreePage>();
+  }
+  // 查找到叶节点
+  return INDEXITERATOR_TYPE(std::move(guard), 0, bpm_);
+}
 
 /*
  * Input parameter is low key, find the leaf page that contains the input key
@@ -430,7 +448,26 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE()
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
+  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  if (root_page->root_page_id_ == INVALID_PAGE_ID) {
+    // 树是空的
+    throw Exception("The Tree is Empty!");
+  }
+  guard = bpm_->FetchPageBasic(root_page->root_page_id_);
+  auto page = guard.AsMut<BPlusTreePage>();
+  while (!page->IsLeafPage()) {
+    // 顺着内部节点查询
+    auto internal_page = guard.template As<InternalPage>();
+    page_id_t page_id = internal_page->InternalFind(key, comparator_);
+    guard = bpm_->FetchPageBasic(page_id);
+    page = guard.AsMut<BPlusTreePage>();
+  }
+  // 查找到叶节点
+//  auto leaf_page = guard.template As<LeafPage>();
+  return INDEXITERATOR_TYPE(std::move(guard), 0, bpm_);
+}
 
 /*
  * Input parameter is void, construct an index iterator representing the end
@@ -438,7 +475,26 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE { return IN
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
+  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  if (root_page->root_page_id_ == INVALID_PAGE_ID) {
+    // 树是空的
+    throw Exception("The Tree is Empty!");
+  }
+  guard = bpm_->FetchPageBasic(root_page->root_page_id_);
+  auto page = guard.AsMut<BPlusTreePage>();
+  while (!page->IsLeafPage()) {
+    // 顺着内部节点查询
+    auto internal_page = guard.template As<InternalPage>();
+    page_id_t page_id = internal_page->ValueAt(internal_page->GetSize() - 1);
+    guard = bpm_->FetchPageBasic(page_id);
+    page = guard.AsMut<BPlusTreePage>();
+  }
+  // 查找到叶节点
+  //  auto leaf_page = guard.template As<LeafPage>();
+  return INDEXITERATOR_TYPE(std::move(guard), -1, bpm_);
+}
 
 /**
  * @return Page id of the root of this tree

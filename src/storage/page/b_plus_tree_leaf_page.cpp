@@ -49,6 +49,11 @@ INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const -> KeyType { return array_[index].first; }
 
 INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::PairAt(int index) const -> const MappingType &{
+  return array_[index];
+}
+
+INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::Add(const KeyType &key, const ValueType &value, const KeyComparator &comparator) {
   int size = GetSize();
   array_[size].first = key;

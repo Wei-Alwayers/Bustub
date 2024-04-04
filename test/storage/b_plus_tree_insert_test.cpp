@@ -134,7 +134,7 @@ TEST(BPlusTreeTests, InsertTest3) {
   ASSERT_EQ(page_id, HEADER_PAGE_ID);
 
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 2, 3);
   GenericKey<8> index_key;
   RID rid;
   // create transaction
@@ -159,6 +159,7 @@ TEST(BPlusTreeTests, InsertTest3) {
     EXPECT_EQ(rids[0].GetSlotNum(), value);
   }
 
+  std::cout << tree.DrawBPlusTree();
   int64_t start_key = 1;
   int64_t current_key = start_key;
   index_key.SetFromInteger(start_key);
