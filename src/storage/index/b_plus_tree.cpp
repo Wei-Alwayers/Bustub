@@ -245,8 +245,8 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
   }
   leaf_page->Remove(key, comparator_);
   // 处理leaf root page
-  if(guard.PageId() == ctx.root_page_id_){
-    if(leaf_page->GetSize() == 0){
+  if (guard.PageId() == ctx.root_page_id_) {
+    if (leaf_page->GetSize() == 0) {
       // 删除page，将root page设置为invalid
       page_id_t page_id = guard.PageId();
       bpm_->DeletePage(page_id);
@@ -257,7 +257,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
   }
 
   // 不足min size，需要coalesce
-  if(leaf_page->GetSize() < leaf_page->GetMinSize()){
+  if (leaf_page->GetSize() < leaf_page->GetMinSize()) {
     auto leaf_guard = std::move(guard);
     auto parent_guard = std::move(ctx.write_set_.back());
     ctx.write_set_.pop_back();
@@ -266,12 +266,11 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
     int index = parent_page->ValueIndex(leaf_guard.PageId());
     WritePageGuard leaf_sibling_guard;
     page_id_t leaf_sibling_page_id;
-    if(index < parent_page->GetSize() - 1){
+    if (index < parent_page->GetSize() - 1) {
       int sibling_index = index + 1;
       leaf_sibling_page_id = parent_page->ValueAt(sibling_index);
       leaf_sibling_guard = bpm_->FetchPageWrite(leaf_sibling_page_id);
-    }
-    else{
+    } else {
       int sibling_index = index - 1;
       leaf_sibling_guard = std::move(leaf_guard);
       page_id_t internal_page_id = parent_page->ValueAt(sibling_index);
@@ -292,14 +291,14 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       // 更新parent page
       parent_page->Remove(sibling_key, comparator_);
       // 检查internal page是否小于min size
-      while (parent_page->GetSize() < parent_page->GetMinSize()){
+      while (parent_page->GetSize() < parent_page->GetMinSize()) {
         // 根节点不需要在意min size，大小为1时删除
-        if(parent_guard.PageId() == ctx.root_page_id_){
-          if(parent_page->GetSize() == 1){
+        if (parent_guard.PageId() == ctx.root_page_id_) {
+          if (parent_page->GetSize() == 1) {
             // 设置新的根节点
             root_page->root_page_id_ = parent_page->ValueAt(0);
             // 删除原有根节点
-            page_id_t  old_page_id = parent_guard.PageId();
+            page_id_t old_page_id = parent_guard.PageId();
             bpm_->DeletePage(old_page_id);
             parent_guard.Drop();
           }
@@ -315,12 +314,11 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
         index = parent_page->ValueIndex(internal_guard.PageId());
         WritePageGuard internal_sibling_guard;
         page_id_t internal_sibling_page_id;
-        if(index < parent_page->GetSize() - 1){
+        if (index < parent_page->GetSize() - 1) {
           int sibling_index = index + 1;
           internal_sibling_page_id = parent_page->ValueAt(sibling_index);
           internal_sibling_guard = bpm_->FetchPageWrite(internal_sibling_page_id);
-        }
-        else{
+        } else {
           int sibling_index = index - 1;
           internal_sibling_guard = std::move(internal_guard);
           page_id_t internal_page_id = parent_page->ValueAt(sibling_index);
@@ -330,7 +328,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
         internal_page = internal_guard.template AsMut<InternalPage>();
         auto internal_sibling_page = internal_sibling_guard.template AsMut<InternalPage>();
 
-        if(internal_page->GetSize() + internal_sibling_page->GetSize() <= internal_page ->GetMaxSize()){
+        if (internal_page->GetSize() + internal_sibling_page->GetSize() <= internal_page->GetMaxSize()) {
           // internal page merge
           KeyType internal_sibling_key = internal_sibling_page->KeyAt(0);
           InternalPage::InternalMerge(internal_page, internal_sibling_page);
@@ -339,12 +337,10 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
           internal_sibling_guard.Drop();
           // 更新parent page
           parent_page->Remove(internal_sibling_key, comparator_);
-        }
-        else{
-          if(internal_page->GetSize() < internal_sibling_page->GetSize()){
+        } else {
+          if (internal_page->GetSize() < internal_sibling_page->GetSize()) {
             InternalPage::MoveOneKey(internal_page, internal_sibling_page);
-          }
-          else{
+          } else {
             InternalPage::MoveOneKey(internal_sibling_page, internal_page);
           }
           // 更新parent
@@ -353,20 +349,18 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
           int internal_index = parent_page->ValueIndex(internal_guard.PageId());
           parent_page->SetKeyAt(internal_index, internal_page->KeyAt(0));
           // 递归更新
-          if(parent_guard.PageId() != root_page->root_page_id_){
+          if (parent_guard.PageId() != root_page->root_page_id_) {
             UpdateInternalNode(parent_guard, ctx);
           }
           return;
         }
       }
       return;
-    }
-    else {
+    } else {
       // move 1 key from sibling page
-      if(leaf_page->GetSize() < leaf_sibling_page->GetSize()){
+      if (leaf_page->GetSize() < leaf_sibling_page->GetSize()) {
         LeafPage::MoveOneKey(leaf_page, leaf_sibling_page);
-      }
-      else{
+      } else {
         LeafPage::MoveOneKey(leaf_sibling_page, leaf_page);
       }
       // 更新parent
@@ -379,15 +373,14 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       return;
     }
 
-  }
-  else{
+  } else {
     // 获取parent节点
     WritePageGuard parent_guard = std::move(ctx.write_set_.back());
     ctx.write_set_.pop_back();
     // 更新old_page_id的key
     auto parent_page = parent_guard.template AsMut<InternalPage>();
     int index = parent_page->ValueIndex(guard.PageId());
-    if(comparator_(parent_page->KeyAt(index), leaf_page->KeyAt(0)) != 0){
+    if (comparator_(parent_page->KeyAt(index), leaf_page->KeyAt(0)) != 0) {
       parent_page->SetKeyAt(index, leaf_page->KeyAt(0));
       UpdateInternalNode(parent_guard, ctx);
     }
@@ -395,13 +388,14 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::UpdateInternalNode(WritePageGuard &child_guard, Context &ctx){
+void BPLUSTREE_TYPE::UpdateInternalNode(WritePageGuard &child_guard, Context &ctx) {
   auto child_page = child_guard.template AsMut<InternalPage>();
   auto parent_guard = std::move(ctx.write_set_.back());
   ctx.write_set_.pop_back();
   auto parent_page = parent_guard.template AsMut<InternalPage>();
   int index = parent_page->ValueIndex(child_guard.PageId());
-  while (comparator_(parent_page->KeyAt(index), child_page->KeyAt(0)) != 0 && parent_guard.PageId() != ctx.root_page_id_){
+  while (comparator_(parent_page->KeyAt(index), child_page->KeyAt(0)) != 0 &&
+         parent_guard.PageId() != ctx.root_page_id_) {
     // 递归更新internal page的key
     parent_page->SetKeyAt(index, child_page->KeyAt(0));
     child_page = parent_page;
@@ -464,7 +458,7 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
     page = guard.template As<BPlusTreePage>();
   }
   // 查找到叶节点
-//  auto leaf_page = guard.template As<LeafPage>();
+  //  auto leaf_page = guard.template As<LeafPage>();
   return INDEXITERATOR_TYPE(std::move(guard), 0, bpm_);
 }
 

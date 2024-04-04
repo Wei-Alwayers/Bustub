@@ -49,9 +49,7 @@ INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const -> KeyType { return array_[index].first; }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::PairAt(int index) const -> const MappingType &{
-  return array_[index];
-}
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::PairAt(int index) const -> const MappingType & { return array_[index]; }
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::Add(const KeyType &key, const ValueType &value, const KeyComparator &comparator) {
@@ -101,7 +99,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Redistribute(BPlusTreeLeafPage *page, BPlusTree
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::Remove(const KeyType &key, const KeyComparator &comparator){
+void B_PLUS_TREE_LEAF_PAGE_TYPE::Remove(const KeyType &key, const KeyComparator &comparator) {
   // 二分查找
   int low = 0;
   int high = GetSize() - 1;
@@ -115,7 +113,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Remove(const KeyType &key, const KeyComparator 
       high = mid - 1;
     } else {
       // 如果找到key，删除对应元素
-      for(int i = mid; i < GetSize() - 1; i++){
+      for (int i = mid; i < GetSize() - 1; i++) {
         array_[i] = array_[i + 1];
       }
       SetSize(GetSize() - 1);
@@ -125,9 +123,9 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Remove(const KeyType &key, const KeyComparator 
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveOneKey(BPlusTreeLeafPage *page, BPlusTreeLeafPage *sibling_page){
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveOneKey(BPlusTreeLeafPage *page, BPlusTreeLeafPage *sibling_page) {
   page->array_[page->GetSize()] = sibling_page->array_[0];
-  for(int i = 0; i < sibling_page->GetSize(); i++){
+  for (int i = 0; i < sibling_page->GetSize(); i++) {
     sibling_page->array_[i] = sibling_page->array_[i + 1];
   }
   page->SetSize(page->GetSize() + 1);
@@ -135,9 +133,9 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveOneKey(BPlusTreeLeafPage *page, BPlusTreeLe
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::LeafMerge(BPlusTreeLeafPage *page, BPlusTreeLeafPage *sibling_page){
+void B_PLUS_TREE_LEAF_PAGE_TYPE::LeafMerge(BPlusTreeLeafPage *page, BPlusTreeLeafPage *sibling_page) {
   int i = page->GetSize();
-  for(int j = 0; j < sibling_page->GetSize(); j++){
+  for (int j = 0; j < sibling_page->GetSize(); j++) {
     page->array_[i] = sibling_page->array_[j];
     i++;
   }

@@ -13,12 +13,10 @@ namespace bustub {
  */
 
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::~IndexIterator()= default;
+INDEXITERATOR_TYPE::~IndexIterator() = default;
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::IsEnd() -> bool {
-  return index_ == -1;
-}
+auto INDEXITERATOR_TYPE::IsEnd() -> bool { return index_ == -1; }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator*() -> const MappingType & {
@@ -29,18 +27,16 @@ auto INDEXITERATOR_TYPE::operator*() -> const MappingType & {
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   auto page = guard_.template As<LeafPage>();
-//  if(IsEnd()){
-//    throw Exception("Is End!!");
-//  }
-  if(index_ < page->GetSize() - 1){
+  //  if(IsEnd()){
+  //    throw Exception("Is End!!");
+  //  }
+  if (index_ < page->GetSize() - 1) {
     index_++;
-  }
-  else{
-    if(page->GetNextPageId() != INVALID_PAGE_ID){
+  } else {
+    if (page->GetNextPageId() != INVALID_PAGE_ID) {
       guard_ = bpm_->FetchPageRead(page->GetNextPageId());
       index_ = 0;
-    }
-    else{
+    } else {
       index_ = -1;
     }
   }

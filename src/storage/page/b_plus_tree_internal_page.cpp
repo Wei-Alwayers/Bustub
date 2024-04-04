@@ -118,7 +118,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RedistributeWithInsert(BPlusTreeInternalPag
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(KeyType key, KeyComparator comparator){
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(KeyType key, KeyComparator comparator) {
   // 二分查找
   int low = 0;
   int high = GetSize() - 1;
@@ -132,7 +132,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(KeyType key, KeyComparator comparato
       high = mid - 1;
     } else {
       // 如果找到key，删除对应元素
-      for(int i = mid + 1; i < GetSize(); i++){
+      for (int i = mid + 1; i < GetSize(); i++) {
         array_[i] = array_[i + 1];
       }
       SetSize(GetSize() - 1);
@@ -142,9 +142,9 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(KeyType key, KeyComparator comparato
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InternalMerge(BPlusTreeInternalPage *page, BPlusTreeInternalPage *sibling_page){
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InternalMerge(BPlusTreeInternalPage *page, BPlusTreeInternalPage *sibling_page) {
   int i = page->GetSize();
-  for(int j = 0; j < sibling_page->GetSize(); j++){
+  for (int j = 0; j < sibling_page->GetSize(); j++) {
     page->array_[i] = sibling_page->array_[j];
     i++;
   }
@@ -153,9 +153,9 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InternalMerge(BPlusTreeInternalPage *page, 
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveOneKey(BPlusTreeInternalPage *page, BPlusTreeInternalPage *sibling_page){
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveOneKey(BPlusTreeInternalPage *page, BPlusTreeInternalPage *sibling_page) {
   page->array_[page->GetSize()] = sibling_page->array_[0];
-  for(int i = 0; i < sibling_page->GetSize(); i++){
+  for (int i = 0; i < sibling_page->GetSize(); i++) {
     sibling_page->array_[i] = sibling_page->array_[i + 1];
   }
   page->SetSize(page->GetSize() + 1);

@@ -45,6 +45,7 @@ BasicPageGuard::~BasicPageGuard() { Drop(); };  // NOLINT
 ReadPageGuard::ReadPageGuard(ReadPageGuard &&that) noexcept { this->guard_ = std::move(that.guard_); }
 
 auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & {
+  Drop();
   this->guard_ = std::move(that.guard_);
   return *this;
 }
@@ -59,12 +60,12 @@ void ReadPageGuard::Drop() {
 ReadPageGuard::~ReadPageGuard() { Drop(); }  // NOLINT
 
 WritePageGuard::WritePageGuard(WritePageGuard &&that) noexcept {
-  this->guard_ = BasicPageGuard(std::move(that.guard_));
+  this->guard_ = std::move(that.guard_);
 }
 
 auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard & {
   Drop();
-  this->guard_ = BasicPageGuard(std::move(that.guard_));
+  this->guard_ = std::move(that.guard_);
   return *this;
 }
 
