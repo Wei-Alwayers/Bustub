@@ -287,9 +287,11 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       // 删除sibling page
       page_id_t sibling_page_id = leaf_sibling_guard.PageId();
       bpm_->DeletePage(sibling_page_id);
-      leaf_sibling_guard.Drop();
       // 更新parent page
       parent_page->Remove(sibling_key, comparator_);
+      int leaf_index = parent_page->ValueIndex(leaf_guard.PageId());
+      parent_page->SetKeyAt(leaf_index, leaf_page->KeyAt(0));
+      leaf_sibling_guard.Drop();
       // 检查internal page是否小于min size
       while (parent_page->GetSize() < parent_page->GetMinSize()) {
         // 根节点不需要在意min size，大小为1时删除
@@ -337,6 +339,8 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
           internal_sibling_guard.Drop();
           // 更新parent page
           parent_page->Remove(internal_sibling_key, comparator_);
+          int internal_index = parent_page->ValueIndex(internal_guard.PageId());
+          parent_page->SetKeyAt(internal_index, internal_page->KeyAt(0));
         } else {
           if (internal_page->GetSize() < internal_sibling_page->GetSize()) {
             InternalPage::MoveOneKey(internal_page, internal_sibling_page);

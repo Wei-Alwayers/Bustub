@@ -132,7 +132,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(KeyType key, KeyComparator comparato
       high = mid - 1;
     } else {
       // 如果找到key，删除对应元素
-      for (int i = mid + 1; i < GetSize(); i++) {
+      for (int i = mid; i < GetSize(); i++) {
         array_[i] = array_[i + 1];
       }
       SetSize(GetSize() - 1);

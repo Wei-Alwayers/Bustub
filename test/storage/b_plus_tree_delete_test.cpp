@@ -59,13 +59,12 @@ TEST(BPlusTreeTests, DeleteTest1) {
     int64_t value = key & 0xFFFFFFFF;
     EXPECT_EQ(rids[0].GetSlotNum(), value);
   }
-  std::cout << tree.DrawBPlusTree();
 
-  std::vector<int64_t> remove_keys = {1, 5};
+  std::vector<int64_t> remove_keys = {1, 5, 2, 4, 3};
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
-    //    std::cout << tree.DrawBPlusTree();
+    std::cout << tree.DrawBPlusTree();
   }
   std::cout << tree.DrawBPlusTree();
 
@@ -87,7 +86,7 @@ TEST(BPlusTreeTests, DeleteTest1) {
     }
   }
 
-  EXPECT_EQ(size, 3);
+  EXPECT_EQ(size, 0);
 
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete transaction;
