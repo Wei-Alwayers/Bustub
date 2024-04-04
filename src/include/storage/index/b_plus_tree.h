@@ -134,7 +134,7 @@ class BPlusTree {
 
   void InsertIntoInternalNode(WritePageGuard &parent_guard, KeyType key, page_id_t page_id, Context &ctx);
 
-  void UpdateInternalNode(WritePageGuard &child_guard, Context &ctx);
+  void UpdateInternalNode(WritePageGuard child_guard, Context &ctx);
 
   // member variable
   std::string index_name_;

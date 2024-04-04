@@ -156,8 +156,10 @@ void BPLUSTREE_TYPE::SplitLeafNode(Context &ctx, WritePageGuard &guard) {
     auto parent_page = parent_guard.template AsMut<InternalPage>();
     int index = parent_page->ValueIndex(guard.PageId());
     parent_page->SetKeyAt(index, leaf_page->KeyAt(0));
-
     KeyType new_page_key = new_leaf_page->KeyAt(0);
+    // 把children page释放掉
+    guard.Drop();
+    new_guard.Drop();
     InsertIntoInternalNode(parent_guard, new_page_key, new_page_id, ctx);
   }
 }
@@ -186,6 +188,7 @@ void BPLUSTREE_TYPE::InsertIntoInternalNode(WritePageGuard &guard, const KeyType
       new_root_page->Add(page->KeyAt(0), guard.PageId(), comparator_);
       new_root_page->Add(new_internal_page->KeyAt(0), new_internal_guard.PageId(), comparator_);
       // 修改root值
+      root_page = ctx.header_page_->template AsMut<BPlusTreeHeaderPage>();
       root_page->root_page_id_ = new_root_id;
     } else {
       // 获取parent节点
@@ -196,7 +199,11 @@ void BPLUSTREE_TYPE::InsertIntoInternalNode(WritePageGuard &guard, const KeyType
       int index = parent_page->ValueIndex(guard.PageId());
       parent_page->SetKeyAt(index, page->KeyAt(0));
       // 向parent插入数据
-      InsertIntoInternalNode(parent_guard, new_internal_page->KeyAt(0), new_internal_guard.PageId(), ctx);
+      KeyType new_internal_key = new_internal_page->KeyAt(0);
+      new_internal_page_id = new_internal_guard.PageId();
+      guard.Drop();
+      new_internal_guard.Drop();
+      InsertIntoInternalNode(parent_guard, new_internal_key, new_internal_page_id, ctx);
     }
   } else {
     page->Add(key, page_id, comparator_);
@@ -250,6 +257,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       // 删除page，将root page设置为invalid
       page_id_t page_id = guard.PageId();
       bpm_->DeletePage(page_id);
+      root_page = ctx.header_page_->template AsMut<BPlusTreeHeaderPage>();
       root_page->root_page_id_ = INVALID_PAGE_ID;
       guard.Drop();
     }
@@ -293,12 +301,14 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       int leaf_index = parent_page->ValueIndex(leaf_guard.PageId());
       parent_page->SetKeyAt(leaf_index, leaf_page->KeyAt(0));
       leaf_sibling_guard.Drop();
+      leaf_guard.Drop();
       // 检查internal page是否小于min size
       while (parent_page->GetSize() < parent_page->GetMinSize()) {
         // 根节点不需要在意min size，大小为1时删除
         if (parent_guard.PageId() == ctx.root_page_id_) {
           if (parent_page->GetSize() == 1) {
             // 设置新的根节点
+            root_page = ctx.header_page_->template AsMut<BPlusTreeHeaderPage>();
             root_page->root_page_id_ = parent_page->ValueAt(0);
             // 删除原有根节点
             page_id_t old_page_id = parent_guard.PageId();
@@ -350,9 +360,12 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
           parent_page->SetKeyAt(internal_sibling_index, internal_sibling_page->KeyAt(0));
           int internal_index = parent_page->ValueIndex(internal_guard.PageId());
           parent_page->SetKeyAt(internal_index, internal_page->KeyAt(0));
+          // 释放children
+          internal_guard.Drop();
+          internal_sibling_guard.Drop();
           // 递归更新
-          if (parent_guard.PageId() != root_page->root_page_id_) {
-            UpdateInternalNode(parent_guard, ctx);
+          if (parent_guard.PageId() != ctx.root_page_id_) {
+            UpdateInternalNode(std::move(parent_guard), ctx);
           }
           return;
         }
@@ -364,10 +377,10 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       // 更新parent
       int sibling_index = parent_page->ValueIndex(leaf_sibling_guard.PageId());
       parent_page->SetKeyAt(sibling_index, leaf_sibling_page->KeyAt(0));
-      index = parent_page->ValueIndex(guard.PageId());
+      index = parent_page->ValueIndex(leaf_guard.PageId());
       parent_page->SetKeyAt(index, leaf_page->KeyAt(0));
       // 递归更新
-      UpdateInternalNode(parent_guard, ctx);
+      UpdateInternalNode(std::move(parent_guard), ctx);
       return;
     }
 
@@ -380,14 +393,18 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
     int index = parent_page->ValueIndex(guard.PageId());
     if (comparator_(parent_page->KeyAt(index), leaf_page->KeyAt(0)) != 0) {
       parent_page->SetKeyAt(index, leaf_page->KeyAt(0));
-      UpdateInternalNode(parent_guard, ctx);
+      guard.Drop();
+      UpdateInternalNode(std::move(parent_guard), ctx);
     }
   }
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::UpdateInternalNode(WritePageGuard &child_guard, Context &ctx) {
+void BPLUSTREE_TYPE::UpdateInternalNode(WritePageGuard child_guard, Context &ctx) {
   auto child_page = child_guard.template AsMut<InternalPage>();
+  if(ctx.write_set_.empty()){
+    return;
+  }
   auto parent_guard = std::move(ctx.write_set_.back());
   ctx.write_set_.pop_back();
   auto parent_page = parent_guard.template AsMut<InternalPage>();
