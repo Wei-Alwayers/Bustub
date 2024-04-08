@@ -33,13 +33,21 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   Tuple child_tuple;
   TupleMeta meta = {INVALID_TXN_ID, INVALID_TXN_ID, false};
   while (child_executor_->Next(&child_tuple, &child_rid)) {
-    size++;
     // 删除旧数据
     TupleMeta old_meta = table->GetTupleMeta(child_rid);
     old_meta.is_deleted_ = true;
     table->UpdateTupleMeta(old_meta, child_rid);
     // 插入新数据
-    table->InsertTuple(meta, child_tuple, nullptr, nullptr, plan_->TableOid());
+    std::vector<Value> values;
+    const Schema *schema = &exec_ctx_->GetCatalog()->GetTable(plan_->TableOid())->schema_;
+    int cols_size = plan_->target_expressions_.size();
+    for(int i = 0; i < cols_size; i++){
+      values.push_back(plan_->target_expressions_[i]->Evaluate(&child_tuple, *schema));
+    }
+    Tuple insert_tuple = Tuple(values, schema);
+    table->InsertTuple(meta, insert_tuple, nullptr, nullptr, plan_->TableOid());
+    // 记录增加
+    size++;
   }
   std::vector<Value> res{};
   res.push_back(Value(TypeId::INTEGER, size));
