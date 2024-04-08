@@ -22,9 +22,11 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if(iterator_.IsEnd()){
     return false;
   }
-  if(iterator_.GetTuple().first.is_deleted_){
+  while (iterator_.GetTuple().first.is_deleted_){
     iterator_.operator++();
-    return true;
+    if(iterator_.IsEnd()){
+      return false;
+    }
   }
   *tuple = iterator_.GetTuple().second;
   *rid = iterator_.GetRID();

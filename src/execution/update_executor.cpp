@@ -17,12 +17,14 @@ namespace bustub {
 
 UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx) {
-  // As of Fall 2022, you DON'T need to implement update executor to have perfect score in project 3 / project 4.
+    : AbstractExecutor(exec_ctx) , plan_(plan), child_executor_(std::move(child_executor)){}
+
+void UpdateExecutor::Init() {
+  table_info_ = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
 }
 
-void UpdateExecutor::Init() { throw NotImplementedException("UpdateExecutor is not implemented"); }
-
-auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool { return false; }
+auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
+  return false;
+}
 
 }  // namespace bustub
