@@ -14,10 +14,22 @@
 
 namespace bustub {
 
-SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) : AbstractExecutor(exec_ctx) {}
+SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) : AbstractExecutor(exec_ctx), plan_(plan), iterator_(exec_ctx->GetCatalog()->GetTable(plan->GetTableOid())->table_.get()->MakeIterator()){}
 
-void SeqScanExecutor::Init() { throw NotImplementedException("SeqScanExecutor is not implemented"); }
+void SeqScanExecutor::Init() {}
 
-auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool { return false; }
+auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
+  if(iterator_.IsEnd()){
+    return false;
+  }
+  if(iterator_.GetTuple().first.is_deleted_){
+    iterator_.operator++();
+    return true;
+  }
+  *tuple = iterator_.GetTuple().second;
+  *rid = iterator_.GetRID();
+  iterator_.operator++();
+  return true;
+}
 
 }  // namespace bustub
