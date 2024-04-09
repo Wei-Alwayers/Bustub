@@ -26,7 +26,9 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   if(is_deleted){
     return false;
   }
-  TableHeap *table = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid())->table_.get();
+  Catalog *catalog = exec_ctx_->GetCatalog();
+  TableHeap *table = catalog->GetTable(plan_->TableOid())->table_.get();
+  std::vector<IndexInfo *> indexes = catalog->GetTableIndexes(catalog->GetTable(plan_->TableOid())->name_);
   int size = 0;
   RID child_rid;
   Tuple child_tuple;
@@ -35,6 +37,12 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     TupleMeta meta = table->GetTupleMeta(child_rid);
     meta.is_deleted_ = true;
     table->UpdateTupleMeta(meta, child_rid);
+    // 删除index
+    Tuple index_tuple;
+    for (IndexInfo* index_ptr : indexes){
+      index_tuple = child_tuple.KeyFromTuple(catalog->GetTable(plan_->TableOid())->schema_, index_ptr->key_schema_, index_ptr->index_->GetKeyAttrs());
+      index_ptr->index_->DeleteEntry(index_tuple, child_rid, nullptr);
+    }
   }
   std::vector<Value> res{};
   res.push_back(Value(TypeId::INTEGER, size));

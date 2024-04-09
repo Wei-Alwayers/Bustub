@@ -432,7 +432,7 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
   auto root_page = guard.template As<BPlusTreeHeaderPage>();
   if (root_page->root_page_id_ == INVALID_PAGE_ID) {
     // 树是空的
-    throw Exception("The Tree is Empty!");
+    return INDEXITERATOR_TYPE(std::move(guard), -1, bpm_);
   }
   guard = bpm_->FetchPageRead(root_page->root_page_id_);
   auto page = guard.template As<BPlusTreePage>();
@@ -458,7 +458,7 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
   auto root_page = guard.template As<BPlusTreeHeaderPage>();
   if (root_page->root_page_id_ == INVALID_PAGE_ID) {
     // 树是空的
-    throw Exception("The Tree is Empty!");
+    return INDEXITERATOR_TYPE(std::move(guard), -1, bpm_);
   }
   guard = bpm_->FetchPageRead(root_page->root_page_id_);
   auto page = guard.template As<BPlusTreePage>();
@@ -485,7 +485,7 @@ auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
   auto root_page = guard.template As<BPlusTreeHeaderPage>();
   if (root_page->root_page_id_ == INVALID_PAGE_ID) {
     // 树是空的
-    throw Exception("The Tree is Empty!");
+    return INDEXITERATOR_TYPE(std::move(guard), -1, bpm_);
   }
   guard = bpm_->FetchPageRead(root_page->root_page_id_);
   auto page = guard.template As<BPlusTreePage>();
