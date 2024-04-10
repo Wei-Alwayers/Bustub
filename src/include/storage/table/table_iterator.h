@@ -47,6 +47,10 @@ class TableIterator {
 
   auto operator++() -> TableIterator &;
 
+  void Reset(){
+    rid_ = start_rid_;
+  }
+
  private:
   TableHeap *table_heap_;
   RID rid_;
@@ -55,6 +59,8 @@ class TableIterator {
   // Otherwise we will have dead loops when updating while scanning. (In project 4, update should be implemented as
   // deletion + insertion.)
   RID stop_at_rid_;
+
+  RID start_rid_;
 };
 
 }  // namespace bustub

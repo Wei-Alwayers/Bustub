@@ -28,63 +28,60 @@ NestedLoopJoinExecutor::NestedLoopJoinExecutor(ExecutorContext *exec_ctx, const 
 }
 
 void NestedLoopJoinExecutor::Init() {
-  RID rid{};
-  Tuple tuple{};
   left_executor_->Init();
-  while (left_executor_->Next(&tuple, &rid)) {
-    left_set_.push_back(tuple);
-  }
   right_executor_->Init();
-  while (right_executor_->Next(&tuple, &rid)){
-    right_set_.push_back(tuple);
-  }
+}
 
-  int left_size = left_set_.size();
-  int right_size = right_set_.size();
-  for(int i = 0; i < left_size; i++) {
-    bool is_find = false;
-    for (int j = 0; j < right_size; ++j) {
-      auto is_joinable = plan_->predicate_->EvaluateJoin(&left_set_[i], left_executor_->GetOutputSchema(),
-                                                         &right_set_[j], right_executor_->GetOutputSchema());
+auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
+  if(!result_set_.empty()){
+    *tuple = result_set_.front();
+    result_set_.pop();
+    return true;
+  }
+  RID left_rid{};
+  Tuple left_tuple{};
+  while (left_executor_->Next(&left_tuple, &left_rid)) {
+    right_executor_->Init();
+    RID right_rid;
+    Tuple right_tuple;
+    while (right_executor_->Next(&right_tuple, &right_rid)){
+      auto is_joinable = plan_->predicate_->EvaluateJoin(&left_tuple, left_executor_->GetOutputSchema(),
+                                                         &right_tuple, right_executor_->GetOutputSchema());
       if (is_joinable.CompareEquals(Value(TypeId::BOOLEAN, 1)) == CmpBool::CmpTrue) {
         // 把两个tuple合并
         Tuple joined_tuple;
         std::vector<Value> joined_values;
         for(uint32_t k = 0; k < left_executor_->GetOutputSchema().GetColumnCount(); k++) {
-          joined_values.push_back(left_set_[i].GetValue(&left_executor_->GetOutputSchema(), k));
+          joined_values.push_back(left_tuple.GetValue(&left_executor_->GetOutputSchema(), k));
         }
         for(uint32_t k = 0; k < right_executor_->GetOutputSchema().GetColumnCount(); k++) {
-          joined_values.push_back(right_set_[j].GetValue(&right_executor_->GetOutputSchema(), k));
+          joined_values.push_back(right_tuple.GetValue(&right_executor_->GetOutputSchema(), k));
         }
         joined_tuple = Tuple(joined_values, &GetOutputSchema());
-        result_set_.push_back(joined_tuple);
-        is_find = true;
+        result_set_.push(joined_tuple);
       }
     }
-    if(plan_->GetJoinType() == JoinType::LEFT && !is_find){
+    if(result_set_.empty() && plan_->GetJoinType() == JoinType::LEFT){
       Tuple joined_tuple;
       std::vector<Value> joined_values;
       for(uint32_t k = 0; k < left_executor_->GetOutputSchema().GetColumnCount(); k++) {
-        joined_values.push_back(left_set_[i].GetValue(&left_executor_->GetOutputSchema(), k));
+        joined_values.push_back(left_tuple.GetValue(&left_executor_->GetOutputSchema(), k));
       }
       for(uint32_t k = 0; k < right_executor_->GetOutputSchema().GetColumnCount(); k++) {
         // 获取null value
         joined_values.push_back(ValueFactory::GetNullValueByType(right_executor_->GetOutputSchema().GetColumn(k).GetType()));
       }
       joined_tuple = Tuple(joined_values, &GetOutputSchema());
-      result_set_.push_back(joined_tuple);
+      result_set_.push(joined_tuple);
+    }
+
+    if(!result_set_.empty()){
+      *tuple = result_set_.front();
+      result_set_.pop();
+      return true;
     }
   }
-
-}
-
-auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if(cursor >= result_set_.size()){
-    return false;
-  }
-  *tuple = result_set_[cursor];
-  cursor++;
-  return true;
+  return false;
 }
 
 }  // namespace bustub

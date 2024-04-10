@@ -20,7 +20,9 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
       {}
 
 
-void IndexScanExecutor::Init() {}
+void IndexScanExecutor::Init() {
+  iterator_.Reset();
+}
 
 auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if(iterator_.IsEnd()) {

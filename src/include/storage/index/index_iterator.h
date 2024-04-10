@@ -30,6 +30,7 @@ class IndexIterator {
     index_ = index;
     guard_ = std::move(guard);
     bpm_ = bpm;
+    begin_index_ = index;
   }
   ~IndexIterator();  // NOLINT
 
@@ -47,11 +48,16 @@ class IndexIterator {
     return !(this->guard_.PageId() == itr.guard_.PageId() && this->index_ == itr.index_);
   }
 
+  void Reset(){
+    index_ = begin_index_;
+  }
+
  private:
   // add your own private member variables here
   ReadPageGuard guard_;
   BufferPoolManager *bpm_;
   int index_;
+  int begin_index_;
 };
 
 }  // namespace bustub

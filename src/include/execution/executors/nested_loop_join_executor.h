@@ -58,10 +58,7 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
 
   std::unique_ptr<AbstractExecutor> left_executor_;
   std::unique_ptr<AbstractExecutor> right_executor_;
-  std::vector<Tuple> left_set_;
-  std::vector<Tuple> right_set_;
-  std::vector<Tuple> result_set_;
-  unsigned long cursor = 0;
+  std::queue<Tuple> result_set_;
 };
 
 }  // namespace bustub

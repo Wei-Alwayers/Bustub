@@ -23,6 +23,7 @@ AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const Aggreg
 void AggregationExecutor::Init() {
   RID child_rid;
   Tuple child_tuple;
+  aht_.Clear();
   child_->Init();
   while (child_->Next(&child_tuple, &child_rid)) {
     aht_.InsertCombine(MakeAggregateKey(&child_tuple), MakeAggregateValue(&child_tuple));

@@ -16,7 +16,9 @@ namespace bustub {
 
 SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) : AbstractExecutor(exec_ctx), plan_(plan), iterator_(exec_ctx->GetCatalog()->GetTable(plan->GetTableOid())->table_.get()->MakeIterator()){}
 
-void SeqScanExecutor::Init() {}
+void SeqScanExecutor::Init() {
+  iterator_.Reset();
+}
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if(iterator_.IsEnd()){
