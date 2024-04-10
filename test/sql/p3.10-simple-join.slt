@@ -4,7 +4,7 @@
 # "rowsort" means that the order of result doesn't matter.
 
 statement ok
-set force_optimizer_starter_rule=yes
+set force_optimizer_starter_rule=yes;
 
 query rowsort
 select * from
