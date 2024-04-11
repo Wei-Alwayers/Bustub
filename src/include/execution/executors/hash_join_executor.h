@@ -58,9 +58,10 @@ class HashJoinExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> left_child_;
   std::unique_ptr<AbstractExecutor> right_child_;
 
-  std::unordered_map<HashJoinKey, Tuple> hash_table_;
-  std::unordered_map<HashJoinKey, Tuple>::iterator iterator_;
+  std::unordered_map<HashJoinKey, std::vector<Tuple>> left_hash_table_;
   std::unordered_map<HashJoinKey, bool> is_joined;
+  std::vector<Tuple> result_set_;
+  unsigned long cursor;
 };
 
 }  // namespace bustub

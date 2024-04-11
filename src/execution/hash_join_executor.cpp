@@ -29,6 +29,7 @@ void HashJoinExecutor::Init() {
   RID left_rid;
   Tuple left_tuple;
   left_child_->Init();
+  // 创建left hash table
   while (left_child_->Next(&left_tuple, &left_rid)){
     HashJoinKey hash_join_key;
     int key_size = plan_->LeftJoinKeyExpressions().size();
@@ -36,12 +37,18 @@ void HashJoinExecutor::Init() {
       Value value = plan_->LeftJoinKeyExpressions()[i]->Evaluate(&left_tuple, left_child_->GetOutputSchema());
       hash_join_key.keys_.push_back(value);
     }
-    hash_table_.insert(std::make_pair(hash_join_key, left_tuple));
+    std::vector<Tuple> tuples;
+    if(left_hash_table_.find(hash_join_key) != left_hash_table_.end()){
+      tuples = left_hash_table_[hash_join_key];
+    }
+    tuples.push_back(left_tuple);
+    left_hash_table_[hash_join_key] = tuples;
     is_joined[hash_join_key] = false;
   }
   RID right_rid;
   Tuple right_tuple;
   right_child_->Init();
+  // 查找可以join的tuple
   while (right_child_->Next(&right_tuple, &right_rid)){
     HashJoinKey hash_join_key;
     int key_size = plan_->RightJoinKeyExpressions().size();
@@ -49,52 +56,58 @@ void HashJoinExecutor::Init() {
       Value value = plan_->RightJoinKeyExpressions()[i]->Evaluate(&right_tuple, right_child_->GetOutputSchema());
       hash_join_key.keys_.push_back(value);
     }
-    if(hash_table_.find(hash_join_key) != hash_table_.end()){
-      // 找到对应的tuple, 把两个tuple合并
-      Tuple joined_tuple;
-      std::vector<Value> joined_values;
-      for(uint32_t k = 0; k < left_child_->GetOutputSchema().GetColumnCount(); k++) {
-        joined_values.push_back(hash_table_[hash_join_key].GetValue(&left_child_->GetOutputSchema(), k));
-      }
-      for(uint32_t k = 0; k < right_child_->GetOutputSchema().GetColumnCount(); k++) {
-        joined_values.push_back(right_tuple.GetValue(&right_child_->GetOutputSchema(), k));
-      }
-      joined_tuple = Tuple(joined_values, &GetOutputSchema());
-      hash_table_[hash_join_key] = joined_tuple;
+    if(left_hash_table_.find(hash_join_key) != left_hash_table_.end()){
       is_joined[hash_join_key] = true;
+      for(unsigned i = 0; i < left_hash_table_[hash_join_key].size(); i++){
+        // 找到对应的tuple, 把两个tuple合并
+        Tuple joined_tuple;
+        std::vector<Tuple> tuples = left_hash_table_[hash_join_key];
+        std::vector<Value> joined_values;
+        for(uint32_t k = 0; k < left_child_->GetOutputSchema().GetColumnCount(); k++) {
+          joined_values.push_back(tuples[i].GetValue(&left_child_->GetOutputSchema(), k));
+        }
+        for(uint32_t k = 0; k < right_child_->GetOutputSchema().GetColumnCount(); k++) {
+          joined_values.push_back(right_tuple.GetValue(&right_child_->GetOutputSchema(), k));
+        }
+        joined_tuple = Tuple(joined_values, &GetOutputSchema());
+        result_set_.push_back(joined_tuple);
+      }
     }
   }
-  iterator_ = hash_table_.begin();
-
-  // 打印哈希表
-//  for(auto it = hash_table_.begin(); it != hash_table_.end(); it++){
-//  }
+  // 处理left join
+  if(plan_->GetJoinType() == JoinType::LEFT){
+    for(auto &it : is_joined){
+      if(it.second == false){
+        // 该tuple没有被join
+        HashJoinKey hash_join_key = it.first;
+        for(unsigned i = 0; i < left_hash_table_[hash_join_key].size(); i++){
+          Tuple joined_tuple;
+          std::vector<Tuple> tuples = left_hash_table_[hash_join_key];
+          std::vector<Value> joined_values;
+          for(uint32_t k = 0; k < left_child_->GetOutputSchema().GetColumnCount(); k++) {
+            joined_values.push_back(tuples[i].GetValue(&left_child_->GetOutputSchema(), k));
+          }
+          for(uint32_t k = 0; k < right_child_->GetOutputSchema().GetColumnCount(); k++) {
+            // 获取null value
+            joined_values.push_back(ValueFactory::GetNullValueByType(right_child_->GetOutputSchema().GetColumn(k).GetType()));
+          }
+          joined_tuple = Tuple(joined_values, &GetOutputSchema());
+          result_set_.push_back(joined_tuple);
+        }
+      }
+    }
+  }
+  // 初始化cursor
+  cursor = 0;
 }
 
 auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-
-  while (iterator_ != hash_table_.end()){
-    if(is_joined[iterator_->first]){
-      *tuple = iterator_->second;
-      iterator_++;
-      return true;
-    }
-    if(plan_->GetJoinType() == JoinType::LEFT){
-      std::vector<Value> joined_values;
-      for(uint32_t k = 0; k < left_child_->GetOutputSchema().GetColumnCount(); k++) {
-        joined_values.push_back(iterator_->second.GetValue(&left_child_->GetOutputSchema(), k));
-      }
-      for(uint32_t k = 0; k < right_child_->GetOutputSchema().GetColumnCount(); k++) {
-        // 获取null value
-        joined_values.push_back(ValueFactory::GetNullValueByType(right_child_->GetOutputSchema().GetColumn(k).GetType()));
-      }
-      *tuple = Tuple(joined_values, &GetOutputSchema());
-      iterator_++;
-      return true;
-    }
-    iterator_++;
+  if(cursor >= result_set_.size()){
+    return false;
   }
-  return false;
+  *tuple = result_set_[cursor];
+  cursor++;
+  return true;
 }
 
 }  // namespace bustub

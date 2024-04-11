@@ -20,68 +20,11 @@ namespace bustub {
 
 auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef {
   // Note for 2023 Spring: You should at least support join keys of the form:
-  switch (plan->GetType()) {
-    case PlanType::SeqScan:
-      std::cout << "SeqScan" << std::endl;
-      break;
-    case PlanType::IndexScan:
-      std::cout << "IndexScan" << std::endl;
-      break;
-    case PlanType::Insert:
-      std::cout << "Insert" << std::endl;
-      break;
-    case PlanType::Update:
-      std::cout << "Update" << std::endl;
-      break;
-    case PlanType::Delete:
-      std::cout << "Delete" << std::endl;
-      break;
-    case PlanType::Aggregation:
-      std::cout << "Aggregation" << std::endl;
-      break;
-    case PlanType::Limit:
-      std::cout << "Limit" << std::endl;
-      break;
-    case PlanType::NestedLoopJoin:
-      std::cout << "NestedLoopJoin" << std::endl;
-      break;
-    case PlanType::NestedIndexJoin:
-      std::cout << "NestedIndexJoin" << std::endl;
-      break;
-    case PlanType::HashJoin:
-      std::cout << "HashJoin" << std::endl;
-      break;
-    case PlanType::Filter:
-      std::cout << "Filter" << std::endl;
-      break;
-    case PlanType::Values:
-      std::cout << "Values" << std::endl;
-      break;
-    case PlanType::Projection:
-      std::cout << "Projection" << std::endl;
-      break;
-    case PlanType::Sort:
-      std::cout << "Sort" << std::endl;
-      break;
-    case PlanType::TopN:
-      std::cout << "TopN" << std::endl;
-      break;
-    case PlanType::MockScan:
-      std::cout << "MockScan" << std::endl;
-      break;
-    case PlanType::InitCheck:
-      std::cout << "InitCheck" << std::endl;
-      break;
-    default:
-      std::cout << "Unknown PlanType" << std::endl;
-      break;
-  }
-
   if(const auto nlj_plan = std::dynamic_pointer_cast<const NestedLoopJoinPlanNode>(plan)){
     if(const auto expression = std::dynamic_pointer_cast<const ComparisonExpression>(nlj_plan->predicate_)){
       if(expression->comp_type_ == ComparisonType::Equal){
         // 1. <column expr> = <column expr>
-        std::cout << "Hash Join1" << std::endl;
+//        std::cout << "Hash Join1" << std::endl;
         std::vector<AbstractExpressionRef> left_key_expressions;
         std::vector<AbstractExpressionRef> right_key_expressions;
         const auto left_expression = std::dynamic_pointer_cast<const ColumnValueExpression>(expression->GetChildAt(0));
@@ -107,7 +50,7 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
         if(const auto left_expression = std::dynamic_pointer_cast<const ComparisonExpression>(expression->GetChildAt(0))){
           if(const auto right_expression = std::dynamic_pointer_cast<const ComparisonExpression>(expression->GetChildAt(1))){
             // 2. <column expr> = <column expr> AND <column expr> = <column expr>
-            std::cout << "Hash Join2" << std::endl;
+//            std::cout << "Hash Join2" << std::endl;
             std::vector<AbstractExpressionRef> left_key_expressions;
             std::vector<AbstractExpressionRef> right_key_expressions;
             // TODO(hmwei): 变量名太不直观
