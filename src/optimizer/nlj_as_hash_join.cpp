@@ -19,12 +19,17 @@
 namespace bustub {
 
 auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef {
+  std::vector<AbstractPlanNodeRef> children;
+  for (const auto &child : plan->GetChildren()) {
+    children.emplace_back(OptimizeNLJAsHashJoin(child));
+  }
+  auto optimized_plan = plan->CloneWithChildren(std::move(children));
   // Note for 2023 Spring: You should at least support join keys of the form:
-  if(const auto nlj_plan = std::dynamic_pointer_cast<const NestedLoopJoinPlanNode>(plan)){
-    if(const auto expression = std::dynamic_pointer_cast<const ComparisonExpression>(nlj_plan->predicate_)){
+  if(optimized_plan->GetType() == PlanType::NestedLoopJoin){
+    const auto &nlj_plan = dynamic_cast<const NestedLoopJoinPlanNode &>(*optimized_plan);
+    if(const auto expression = std::dynamic_pointer_cast<const ComparisonExpression>(nlj_plan.predicate_)){
       if(expression->comp_type_ == ComparisonType::Equal){
         // 1. <column expr> = <column expr>
-//        std::cout << "Hash Join1" << std::endl;
         std::vector<AbstractExpressionRef> left_key_expressions;
         std::vector<AbstractExpressionRef> right_key_expressions;
         const auto left_expression = std::dynamic_pointer_cast<const ColumnValueExpression>(expression->GetChildAt(0));
@@ -38,19 +43,18 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
           right_key_expressions.push_back(std::make_shared<ColumnValueExpression>(left_col_expression));
           left_key_expressions.push_back(std::make_shared<ColumnValueExpression>(right_col_expression));
         }
-        HashJoinPlanNode hash_join_node = HashJoinPlanNode(nlj_plan->output_schema_, nlj_plan->GetLeftPlan(),
-                                                           nlj_plan->GetRightPlan(), left_key_expressions,
-                                                           right_key_expressions, nlj_plan->join_type_);
+        HashJoinPlanNode hash_join_node = HashJoinPlanNode(nlj_plan.output_schema_, nlj_plan.GetLeftPlan(),
+                                                           nlj_plan.GetRightPlan(), left_key_expressions,
+                                                           right_key_expressions, nlj_plan.join_type_);
         AbstractPlanNodeRef new_plan = std::make_shared<HashJoinPlanNode>(hash_join_node);
         return new_plan;
       }
     }
-    if(const auto expression =  std::dynamic_pointer_cast<const LogicExpression>(nlj_plan->predicate_)){
+    if(const auto expression =  std::dynamic_pointer_cast<const LogicExpression>(nlj_plan.predicate_)){
       if(expression->logic_type_ == LogicType::And && expression->children_.size() == 2){
         if(const auto left_expression = std::dynamic_pointer_cast<const ComparisonExpression>(expression->GetChildAt(0))){
           if(const auto right_expression = std::dynamic_pointer_cast<const ComparisonExpression>(expression->GetChildAt(1))){
             // 2. <column expr> = <column expr> AND <column expr> = <column expr>
-//            std::cout << "Hash Join2" << std::endl;
             std::vector<AbstractExpressionRef> left_key_expressions;
             std::vector<AbstractExpressionRef> right_key_expressions;
             // TODO(hmwei): 变量名太不直观
@@ -77,9 +81,9 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
               left_key_expressions.push_back(std::make_shared<ColumnValueExpression>(second_right_col_expression));
               right_key_expressions.push_back(std::make_shared<ColumnValueExpression>(second_left_col_expression));
             }
-            HashJoinPlanNode hash_join_node = HashJoinPlanNode(nlj_plan->output_schema_, nlj_plan->GetLeftPlan(),
-                                                               nlj_plan->GetRightPlan(), left_key_expressions,
-                                                               right_key_expressions, nlj_plan->join_type_);
+            HashJoinPlanNode hash_join_node = HashJoinPlanNode(nlj_plan.output_schema_, nlj_plan.GetLeftPlan(),
+                                                               nlj_plan.GetRightPlan(), left_key_expressions,
+                                                               right_key_expressions, nlj_plan.join_type_);
             AbstractPlanNodeRef new_plan = std::make_shared<HashJoinPlanNode>(hash_join_node);
             return new_plan;
           }
@@ -87,7 +91,7 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
       }
     }
   }
-  return plan;
+  return optimized_plan;
 }
 
 }  // namespace bustub
