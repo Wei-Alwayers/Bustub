@@ -65,6 +65,10 @@ void HashJoinExecutor::Init() {
     }
   }
   iterator_ = hash_table_.begin();
+
+  // 打印哈希表
+//  for(auto it = hash_table_.begin(); it != hash_table_.end(); it++){
+//  }
 }
 
 auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
@@ -85,8 +89,10 @@ auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
         joined_values.push_back(ValueFactory::GetNullValueByType(right_child_->GetOutputSchema().GetColumn(k).GetType()));
       }
       *tuple = Tuple(joined_values, &GetOutputSchema());
+      iterator_++;
       return true;
     }
+    iterator_++;
   }
   return false;
 }
