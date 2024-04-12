@@ -17,6 +17,7 @@
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
+#include "execution/expressions/column_value_expression.h"
 #include "execution/plans/seq_scan_plan.h"
 #include "execution/plans/sort_plan.h"
 #include "storage/table/tuple.h"
@@ -52,5 +53,47 @@ class SortExecutor : public AbstractExecutor {
  private:
   /** The sort plan node to be executed */
   const SortPlanNode *plan_;
+
+  std::unique_ptr<AbstractExecutor> child_executor_;
+  std::vector<Tuple> result_set_;
+  unsigned long cursor;
 };
+
+// 函数对象，用于动态生成比较器
+struct CustomComparator {
+  std::vector<std::pair<OrderByType, AbstractExpressionRef>> order_bys_;
+  Schema schema_;
+
+  // 构造函数，接收排序列的索引
+  CustomComparator(const std::vector<std::pair<OrderByType, AbstractExpressionRef>>& order_bys, const Schema schema) : order_bys_(order_bys) , schema_(schema){}
+
+  // 重载 () 运算符，实现比较器功能
+  bool operator()(const Tuple& lhs, const Tuple& rhs) const {
+    for (std::pair<OrderByType, AbstractExpressionRef> order_by : order_bys_) {
+      const auto col_value_expression = std::dynamic_pointer_cast<const ColumnValueExpression>(order_by.second);
+      Value left_value = lhs.GetValue(&schema_, col_value_expression->GetColIdx());
+      Value right_value = rhs.GetValue(&schema_, col_value_expression->GetColIdx());
+      if(order_by.first == OrderByType::ASC || order_by.first == OrderByType::DEFAULT){
+        // 升序排列
+        if(left_value.CompareLessThan(right_value) == CmpBool::CmpTrue){
+          return true;
+        }
+        if(left_value.CompareGreaterThan(right_value) == CmpBool::CmpTrue){
+          return false;
+        }
+      }
+      if(order_by.first == OrderByType::DESC){
+        // 降序排列
+        if(left_value.CompareLessThan(right_value) == CmpBool::CmpTrue){
+          return false;
+        }
+        if(left_value.CompareGreaterThan(right_value) == CmpBool::CmpTrue){
+          return true;
+        }
+      }
+    }
+    return false; // 默认情况下，元素相等，不需要交换顺序
+  }
+};
+
 }  // namespace bustub
