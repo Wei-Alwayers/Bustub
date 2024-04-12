@@ -70,9 +70,8 @@ struct CustomComparator {
   // 重载 () 运算符，实现比较器功能
   bool operator()(const Tuple& lhs, const Tuple& rhs) const {
     for (std::pair<OrderByType, AbstractExpressionRef> order_by : order_bys_) {
-      const auto col_value_expression = std::dynamic_pointer_cast<const ColumnValueExpression>(order_by.second);
-      Value left_value = lhs.GetValue(&schema_, col_value_expression->GetColIdx());
-      Value right_value = rhs.GetValue(&schema_, col_value_expression->GetColIdx());
+      Value left_value = order_by.second->Evaluate(&lhs, schema_);
+      Value right_value = order_by.second->Evaluate(&rhs, schema_);
       if(order_by.first == OrderByType::ASC || order_by.first == OrderByType::DEFAULT){
         // 升序排列
         if(left_value.CompareLessThan(right_value) == CmpBool::CmpTrue){

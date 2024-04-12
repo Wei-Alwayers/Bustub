@@ -7,6 +7,7 @@ SortExecutor::SortExecutor(ExecutorContext *exec_ctx, const SortPlanNode *plan,
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)){}
 
 void SortExecutor::Init() {
+  result_set_.clear();
   RID rid;
   Tuple tuple;
   child_executor_->Init();
