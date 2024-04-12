@@ -16,7 +16,7 @@ namespace bustub {
 
 LimitExecutor::LimitExecutor(ExecutorContext *exec_ctx, const LimitPlanNode *plan,
                              std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)){}
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
 void LimitExecutor::Init() {
   child_executor_->Init();
@@ -24,12 +24,12 @@ void LimitExecutor::Init() {
 }
 
 auto LimitExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if(cursor >= plan_->GetLimit()){
+  if (cursor >= plan_->GetLimit()) {
     return false;
   }
   bool is_find = child_executor_->Next(tuple, rid);
   cursor++;
-  if(!is_find){
+  if (!is_find) {
     return false;
   }
   return true;

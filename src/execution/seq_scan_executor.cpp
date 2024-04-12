@@ -14,25 +14,27 @@
 
 namespace bustub {
 
-SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) : AbstractExecutor(exec_ctx), plan_(plan), iterator_(exec_ctx->GetCatalog()->GetTable(plan->GetTableOid())->table_.get()->MakeIterator()){}
+SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan)
+    : AbstractExecutor(exec_ctx), plan_(plan) {}
 
 void SeqScanExecutor::Init() {
-  iterator_.Reset();
+  table_iterator_ptr_ = std::make_unique<TableIterator>(
+      exec_ctx_->GetCatalog()->GetTable(plan_->GetTableOid())->table_.get()->MakeIterator());
 }
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if(iterator_.IsEnd()){
+  if (table_iterator_ptr_->IsEnd()) {
     return false;
   }
-  while (iterator_.GetTuple().first.is_deleted_){
-    iterator_.operator++();
-    if(iterator_.IsEnd()){
+  while (table_iterator_ptr_->GetTuple().first.is_deleted_) {
+    table_iterator_ptr_->operator++();
+    if (table_iterator_ptr_->IsEnd()) {
       return false;
     }
   }
-  *tuple = iterator_.GetTuple().second;
-  *rid = iterator_.GetRID();
-  iterator_.operator++();
+  *tuple = table_iterator_ptr_->GetTuple().second;
+  *rid = table_iterator_ptr_->GetRID();
+  table_iterator_ptr_->operator++();
   return true;
 }
 

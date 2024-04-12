@@ -18,7 +18,7 @@ namespace bustub {
 
 DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)){}
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
 void DeleteExecutor::Init() {
   is_deleted = false;
@@ -26,7 +26,7 @@ void DeleteExecutor::Init() {
 }
 
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  if(is_deleted){
+  if (is_deleted) {
     return false;
   }
   Catalog *catalog = exec_ctx_->GetCatalog();
@@ -42,8 +42,9 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     table->UpdateTupleMeta(meta, child_rid);
     // 删除index
     Tuple index_tuple;
-    for (IndexInfo* index_ptr : indexes){
-      index_tuple = child_tuple.KeyFromTuple(catalog->GetTable(plan_->TableOid())->schema_, index_ptr->key_schema_, index_ptr->index_->GetKeyAttrs());
+    for (IndexInfo *index_ptr : indexes) {
+      index_tuple = child_tuple.KeyFromTuple(catalog->GetTable(plan_->TableOid())->schema_, index_ptr->key_schema_,
+                                             index_ptr->index_->GetKeyAttrs());
       index_ptr->index_->DeleteEntry(index_tuple, child_rid, nullptr);
     }
   }

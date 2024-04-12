@@ -29,7 +29,6 @@ TableIterator::TableIterator(TableHeap *table_heap, RID rid, RID stop_at_rid)
   if (rid_.GetSlotNum() >= page->GetNumTuples()) {
     rid_ = RID{INVALID_PAGE_ID, 0};
   }
-  start_rid_ = rid_;
 }
 
 auto TableIterator::GetTuple() -> std::pair<TupleMeta, Tuple> { return table_heap_->GetTuple(rid_); }

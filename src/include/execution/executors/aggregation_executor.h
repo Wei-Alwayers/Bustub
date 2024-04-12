@@ -77,8 +77,8 @@ class SimpleAggregationHashTable {
           result->aggregates_[i] = result->aggregates_[i].Add(ValueFactory::GetIntegerValue(1));
           break;
         case AggregationType::CountAggregate:
-          if(!input.aggregates_[i].IsNull()){
-            if(result->aggregates_[i].IsNull()){
+          if (!input.aggregates_[i].IsNull()) {
+            if (result->aggregates_[i].IsNull()) {
               result->aggregates_[i] = ValueFactory::GetIntegerValue(1);
             } else {
               result->aggregates_[i] = result->aggregates_[i].Add(ValueFactory::GetIntegerValue(1));
@@ -86,8 +86,8 @@ class SimpleAggregationHashTable {
           }
           break;
         case AggregationType::SumAggregate:
-          if(!input.aggregates_[i].IsNull()){
-            if(result->aggregates_[i].IsNull()){
+          if (!input.aggregates_[i].IsNull()) {
+            if (result->aggregates_[i].IsNull()) {
               result->aggregates_[i] = input.aggregates_[i];
             } else {
               result->aggregates_[i] = result->aggregates_[i].Add(input.aggregates_[i]);
@@ -95,8 +95,8 @@ class SimpleAggregationHashTable {
           }
           break;
         case AggregationType::MinAggregate:
-          if(!input.aggregates_[i].IsNull()){
-            if(result->aggregates_[i].IsNull()){
+          if (!input.aggregates_[i].IsNull()) {
+            if (result->aggregates_[i].IsNull()) {
               result->aggregates_[i] = input.aggregates_[i];
             } else {
               result->aggregates_[i] = result->aggregates_[i].Min(input.aggregates_[i]);
@@ -104,8 +104,8 @@ class SimpleAggregationHashTable {
           }
           break;
         case AggregationType::MaxAggregate:
-          if(!input.aggregates_[i].IsNull()){
-            if(result->aggregates_[i].IsNull()){
+          if (!input.aggregates_[i].IsNull()) {
+            if (result->aggregates_[i].IsNull()) {
               result->aggregates_[i] = input.aggregates_[i];
             } else {
               result->aggregates_[i] = result->aggregates_[i].Max(input.aggregates_[i]);
@@ -128,7 +128,7 @@ class SimpleAggregationHashTable {
     CombineAggregateValues(&ht_[agg_key], agg_val);
   }
 
-  void Init(){
+  void Init() {
     AggregateKey key;
     ht_.insert({key, GenerateInitialAggregateValue()});
   }
@@ -138,7 +138,7 @@ class SimpleAggregationHashTable {
    */
   void Clear() { ht_.clear(); }
 
-  auto Size() { return ht_.size();}
+  auto Size() { return ht_.size(); }
 
   /** An iterator over the aggregation hash table */
   class Iterator {

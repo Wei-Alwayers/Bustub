@@ -64,33 +64,35 @@ class TopNExecutor : public AbstractExecutor {
     Schema schema_;
 
     // 构造函数，接收排序列的索引
-    HeapCustomComparator(const std::vector<std::pair<OrderByType, AbstractExpressionRef>>& order_bys, const Schema schema) : order_bys_(order_bys) , schema_(schema){}
+    HeapCustomComparator(const std::vector<std::pair<OrderByType, AbstractExpressionRef>> &order_bys,
+                         const Schema schema)
+        : order_bys_(order_bys), schema_(schema) {}
 
     // 重载 () 运算符，实现比较器功能
-    bool operator()(const Tuple& lhs, const Tuple& rhs) const {
+    bool operator()(const Tuple &lhs, const Tuple &rhs) const {
       for (std::pair<OrderByType, AbstractExpressionRef> order_by : order_bys_) {
         Value left_value = order_by.second->Evaluate(&lhs, schema_);
         Value right_value = order_by.second->Evaluate(&rhs, schema_);
-        if(order_by.first == OrderByType::ASC || order_by.first == OrderByType::DEFAULT){
+        if (order_by.first == OrderByType::ASC || order_by.first == OrderByType::DEFAULT) {
           // 升序排列
-          if(left_value.CompareLessThan(right_value) == CmpBool::CmpTrue){
+          if (left_value.CompareLessThan(right_value) == CmpBool::CmpTrue) {
             return true;
           }
-          if(left_value.CompareGreaterThan(right_value) == CmpBool::CmpTrue){
+          if (left_value.CompareGreaterThan(right_value) == CmpBool::CmpTrue) {
             return false;
           }
         }
-        if(order_by.first == OrderByType::DESC){
+        if (order_by.first == OrderByType::DESC) {
           // 降序排列
-          if(left_value.CompareLessThan(right_value) == CmpBool::CmpTrue){
+          if (left_value.CompareLessThan(right_value) == CmpBool::CmpTrue) {
             return false;
           }
-          if(left_value.CompareGreaterThan(right_value) == CmpBool::CmpTrue){
+          if (left_value.CompareGreaterThan(right_value) == CmpBool::CmpTrue) {
             return true;
           }
         }
       }
-      return false; // 默认情况下，元素相等，不需要交换顺序
+      return false;  // 默认情况下，元素相等，不需要交换顺序
     }
   };
 

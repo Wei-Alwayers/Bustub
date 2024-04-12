@@ -10,14 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <memory>
 #include "execution/executors/insert_executor.h"
+#include <memory>
 
 namespace bustub {
 
 InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)){}
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
 void InsertExecutor::Init() {
   child_executor_->Init();
@@ -25,7 +25,7 @@ void InsertExecutor::Init() {
 }
 
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  if(is_inserted_){
+  if (is_inserted_) {
     return false;
   }
   int size = 0;
@@ -40,8 +40,9 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     RID insert_rid = table->InsertTuple(meta, child_tuple, nullptr, nullptr, plan_->TableOid()).value();
     // 插入index
     Tuple index_tuple;
-    for (IndexInfo* index_ptr : indexes){
-      index_tuple = child_tuple.KeyFromTuple(catalog->GetTable(plan_->TableOid())->schema_, index_ptr->key_schema_, index_ptr->index_->GetKeyAttrs());
+    for (IndexInfo *index_ptr : indexes) {
+      index_tuple = child_tuple.KeyFromTuple(catalog->GetTable(plan_->TableOid())->schema_, index_ptr->key_schema_,
+                                             index_ptr->index_->GetKeyAttrs());
       index_ptr->index_->InsertEntry(index_tuple, insert_rid, nullptr);
     }
   }

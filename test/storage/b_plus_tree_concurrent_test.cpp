@@ -26,9 +26,7 @@ namespace bustub {
 using bustub::DiskManagerUnlimitedMemory;
 
 // 定义日志函数
-void log(const std::string& message) {
-  std::cout << "[LOG] " << message << std::endl;
-}
+void log(const std::string &message) { std::cout << "[LOG] " << message << std::endl; }
 
 // helper function to launch multiple threads
 template <typename... Args>
@@ -49,7 +47,7 @@ void LaunchParallelTest(uint64_t num_threads, Args &&...args) {
 // helper function to insert
 void InsertHelper(BPlusTree<GenericKey<8>, RID, GenericComparator<8>> *tree, const std::vector<int64_t> &keys,
                   uint64_t thread_itr = 0) {
-  log("InsertHelper started by thread " + std::to_string(thread_itr)); // 记录插入任务的开始
+  log("InsertHelper started by thread " + std::to_string(thread_itr));  // 记录插入任务的开始
   GenericKey<8> index_key;
   RID rid;
   // create transaction
@@ -59,10 +57,10 @@ void InsertHelper(BPlusTree<GenericKey<8>, RID, GenericComparator<8>> *tree, con
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree->Insert(index_key, rid, transaction);
-//    log("Inserted key: " + std::to_string(key) + ", thread: " + std::to_string(thread_itr)); // 记录插入的key
+    //    log("Inserted key: " + std::to_string(key) + ", thread: " + std::to_string(thread_itr)); // 记录插入的key
   }
   delete transaction;
-  log("InsertHelper finished by thread " + std::to_string(thread_itr)); // 记录插入任务的结束
+  log("InsertHelper finished by thread " + std::to_string(thread_itr));  // 记录插入任务的结束
 }
 
 // helper function to seperate insert
@@ -86,18 +84,18 @@ void InsertHelperSplit(BPlusTree<GenericKey<8>, RID, GenericComparator<8>> *tree
 // helper function to delete
 void DeleteHelper(BPlusTree<GenericKey<8>, RID, GenericComparator<8>> *tree, const std::vector<int64_t> &remove_keys,
                   uint64_t thread_itr = 0) {
-  log("DeleteHelper started by thread " + std::to_string(thread_itr)); // 记录删除任务的开始
+  log("DeleteHelper started by thread " + std::to_string(thread_itr));  // 记录删除任务的开始
   GenericKey<8> index_key;
   // create transaction
   auto *transaction = new Transaction(0);
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree->Remove(index_key, transaction);
-    log("Deleted key: " + std::to_string(key) + ", thread: " + std::to_string(thread_itr)); // 记录删除的key
+    log("Deleted key: " + std::to_string(key) + ", thread: " + std::to_string(thread_itr));  // 记录删除的key
     std::cout << tree->DrawBPlusTree();
   }
   delete transaction;
-  log("DeleteHelper finished by thread " + std::to_string(thread_itr)); // 记录删除任务的结束
+  log("DeleteHelper finished by thread " + std::to_string(thread_itr));  // 记录删除任务的结束
 }
 
 // helper function to seperate delete
@@ -118,7 +116,7 @@ void DeleteHelperSplit(BPlusTree<GenericKey<8>, RID, GenericComparator<8>> *tree
 
 void LookupHelper(BPlusTree<GenericKey<8>, RID, GenericComparator<8>> *tree, const std::vector<int64_t> &keys,
                   uint64_t tid, uint64_t thread_itr = 0) {
-  log("LookupHelper started by thread " + std::to_string(thread_itr)); // 记录查找任务的开始
+  log("LookupHelper started by thread " + std::to_string(thread_itr));  // 记录查找任务的开始
   auto *transaction = new Transaction(static_cast<txn_id_t>(tid));
   GenericKey<8> index_key;
   RID rid;
@@ -131,10 +129,10 @@ void LookupHelper(BPlusTree<GenericKey<8>, RID, GenericComparator<8>> *tree, con
     ASSERT_EQ(res, true);
     ASSERT_EQ(result.size(), 1);
     ASSERT_EQ(result[0], rid);
-    log("Looked up key: " + std::to_string(key) + ", thread: " + std::to_string(thread_itr)); // 记录查找的key
+    log("Looked up key: " + std::to_string(key) + ", thread: " + std::to_string(thread_itr));  // 记录查找的key
   }
   delete transaction;
-  log("LookupHelper finished by thread " + std::to_string(thread_itr)); // 记录查找任务的结束
+  log("LookupHelper finished by thread " + std::to_string(thread_itr));  // 记录查找任务的结束
 }
 
 TEST(BPlusTreeConcurrentTest, InsertTest1) {
@@ -390,21 +388,20 @@ TEST(BPlusTreeConcurrentTest, MixTest2) {
   std::cout << tree.DrawBPlusTree();
 
   auto insert_task = [&](int tid) {
-    log("Insert task started by thread " + std::to_string(tid)); // 记录插入任务的开始
+    log("Insert task started by thread " + std::to_string(tid));  // 记录插入任务的开始
     InsertHelper(&tree, dynamic_keys, tid);
-    log("Insert task finished by thread " + std::to_string(tid)); // 记录插入任务的结束
+    log("Insert task finished by thread " + std::to_string(tid));  // 记录插入任务的结束
   };
   auto delete_task = [&](int tid) {
-    log("Delete task started by thread " + std::to_string(tid)); // 记录删除任务的开始
+    log("Delete task started by thread " + std::to_string(tid));  // 记录删除任务的开始
     DeleteHelper(&tree, dynamic_keys, tid);
-    log("Delete task finished by thread " + std::to_string(tid)); // 记录删除任务的结束
+    log("Delete task finished by thread " + std::to_string(tid));  // 记录删除任务的结束
   };
   auto lookup_task = [&](int tid) {
-    log("Lookup task started by thread " + std::to_string(tid)); // 记录查找任务的开始
+    log("Lookup task started by thread " + std::to_string(tid));  // 记录查找任务的开始
     LookupHelper(&tree, perserved_keys, tid);
-    log("Lookup task finished by thread " + std::to_string(tid)); // 记录查找任务的结束
+    log("Lookup task finished by thread " + std::to_string(tid));  // 记录查找任务的结束
   };
-
 
   std::vector<std::thread> threads;
   std::vector<std::function<void(int)>> tasks;

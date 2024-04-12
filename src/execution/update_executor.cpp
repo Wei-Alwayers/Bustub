@@ -17,7 +17,7 @@ namespace bustub {
 
 UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx) , plan_(plan), child_executor_(std::move(child_executor)){}
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
 void UpdateExecutor::Init() {
   table_info_ = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
@@ -26,7 +26,7 @@ void UpdateExecutor::Init() {
 }
 
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  if(is_updated){
+  if (is_updated) {
     return false;
   }
   Catalog *catalog = exec_ctx_->GetCatalog();
@@ -43,22 +43,24 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     table->UpdateTupleMeta(old_meta, child_rid);
     // 删除index
     Tuple index_tuple;
-    for (IndexInfo* index_ptr : indexes){
-      index_tuple = child_tuple.KeyFromTuple(catalog->GetTable(plan_->TableOid())->schema_, index_ptr->key_schema_, index_ptr->index_->GetKeyAttrs());
+    for (IndexInfo *index_ptr : indexes) {
+      index_tuple = child_tuple.KeyFromTuple(catalog->GetTable(plan_->TableOid())->schema_, index_ptr->key_schema_,
+                                             index_ptr->index_->GetKeyAttrs());
       index_ptr->index_->DeleteEntry(index_tuple, child_rid, nullptr);
     }
     // 插入新数据
     std::vector<Value> values;
     const Schema *schema = &exec_ctx_->GetCatalog()->GetTable(plan_->TableOid())->schema_;
     int cols_size = plan_->target_expressions_.size();
-    for(int i = 0; i < cols_size; i++){
+    for (int i = 0; i < cols_size; i++) {
       values.push_back(plan_->target_expressions_[i]->Evaluate(&child_tuple, *schema));
     }
     Tuple insert_tuple = Tuple(values, schema);
     RID insert_rid = table->InsertTuple(meta, insert_tuple, nullptr, nullptr, plan_->TableOid()).value();
     // 插入index
-    for (IndexInfo* index_ptr : indexes){
-      index_tuple = insert_tuple.KeyFromTuple(catalog->GetTable(plan_->TableOid())->schema_, index_ptr->key_schema_, index_ptr->index_->GetKeyAttrs());
+    for (IndexInfo *index_ptr : indexes) {
+      index_tuple = insert_tuple.KeyFromTuple(catalog->GetTable(plan_->TableOid())->schema_, index_ptr->key_schema_,
+                                              index_ptr->index_->GetKeyAttrs());
       index_ptr->index_->InsertEntry(index_tuple, insert_rid, nullptr);
     }
     // 记录增加

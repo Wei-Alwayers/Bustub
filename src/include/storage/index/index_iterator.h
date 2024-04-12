@@ -48,9 +48,7 @@ class IndexIterator {
     return !(this->guard_.PageId() == itr.guard_.PageId() && this->index_ == itr.index_);
   }
 
-  void Reset(){
-    index_ = begin_index_;
-  }
+  void Reset() { index_ = begin_index_; }
 
  private:
   // add your own private member variables here
