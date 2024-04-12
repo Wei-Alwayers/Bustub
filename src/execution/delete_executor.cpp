@@ -20,7 +20,10 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
                                std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)){}
 
-void DeleteExecutor::Init() {}
+void DeleteExecutor::Init() {
+  is_deleted = false;
+  child_executor_->Init();
+}
 
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   if(is_deleted){
