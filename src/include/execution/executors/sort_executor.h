@@ -66,7 +66,7 @@ struct CustomComparator {
   Schema schema_;
 
   // 构造函数，接收排序列的索引
-  CustomComparator(std::vector<std::pair<OrderByType, AbstractExpressionRef>> order_bys, Schema  schema)
+  CustomComparator(std::vector<std::pair<OrderByType, AbstractExpressionRef>> order_bys, Schema schema)
       : order_bys_(std::move(order_bys)), schema_(std::move(schema)) {}
 
   // 重载 () 运算符，实现比较器功能
