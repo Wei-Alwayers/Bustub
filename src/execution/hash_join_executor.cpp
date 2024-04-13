@@ -46,7 +46,7 @@ void HashJoinExecutor::Init() {
     }
     tuples.push_back(left_tuple);
     left_hash_table_[hash_join_key] = tuples;
-    is_joined[hash_join_key] = false;
+    is_joined_[hash_join_key] = false;
   }
   RID right_rid;
   Tuple right_tuple;
@@ -60,7 +60,7 @@ void HashJoinExecutor::Init() {
       hash_join_key.keys_.push_back(value);
     }
     if (left_hash_table_.find(hash_join_key) != left_hash_table_.end()) {
-      is_joined[hash_join_key] = true;
+      is_joined_[hash_join_key] = true;
       for (unsigned i = 0; i < left_hash_table_[hash_join_key].size(); i++) {
         // 找到对应的tuple, 把两个tuple合并
         Tuple joined_tuple;
@@ -79,8 +79,8 @@ void HashJoinExecutor::Init() {
   }
   // 处理left join
   if (plan_->GetJoinType() == JoinType::LEFT) {
-    for (auto &it : is_joined) {
-      if (it.second == false) {
+    for (auto &it : is_joined_) {
+      if (!it.second) {
         // 该tuple没有被join
         HashJoinKey hash_join_key = it.first;
         for (unsigned i = 0; i < left_hash_table_[hash_join_key].size(); i++) {
@@ -102,15 +102,15 @@ void HashJoinExecutor::Init() {
     }
   }
   // 初始化cursor
-  cursor = 0;
+  cursor_ = 0;
 }
 
 auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if (cursor >= result_set_.size()) {
+  if (cursor_ >= result_set_.size()) {
     return false;
   }
-  *tuple = result_set_[cursor];
-  cursor++;
+  *tuple = result_set_[cursor_];
+  cursor_++;
   return true;
 }
 

@@ -13,6 +13,7 @@
 #pragma once
 
 #include <memory>
+#include <queue>
 #include <utility>
 #include <vector>
 
@@ -64,13 +65,12 @@ class TopNExecutor : public AbstractExecutor {
     Schema schema_;
 
     // 构造函数，接收排序列的索引
-    HeapCustomComparator(const std::vector<std::pair<OrderByType, AbstractExpressionRef>> &order_bys,
-                         const Schema schema)
-        : order_bys_(order_bys), schema_(schema) {}
+    HeapCustomComparator(std::vector<std::pair<OrderByType, AbstractExpressionRef>> order_bys, Schema schema)
+        : order_bys_(std::move(order_bys)), schema_(std::move(schema)) {}
 
     // 重载 () 运算符，实现比较器功能
-    bool operator()(const Tuple &lhs, const Tuple &rhs) const {
-      for (std::pair<OrderByType, AbstractExpressionRef> order_by : order_bys_) {
+    auto operator()(const Tuple &lhs, const Tuple &rhs) const -> bool {
+      for (const std::pair<OrderByType, AbstractExpressionRef> &order_by : order_bys_) {
         Value left_value = order_by.second->Evaluate(&lhs, schema_);
         Value right_value = order_by.second->Evaluate(&rhs, schema_);
         if (order_by.first == OrderByType::ASC || order_by.first == OrderByType::DEFAULT) {
@@ -105,6 +105,6 @@ class TopNExecutor : public AbstractExecutor {
   std::priority_queue<Tuple, std::vector<Tuple>, HeapCustomComparator> heap_;
   std::vector<Tuple> result_set_;
   size_t num_in_heap_;
-  unsigned long cursor_;
+  size_t cursor_;
 };
 }  // namespace bustub

@@ -21,12 +21,12 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
 void DeleteExecutor::Init() {
-  is_deleted = false;
+  is_deleted_ = false;
   child_executor_->Init();
 }
 
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  if (is_deleted) {
+  if (is_deleted_) {
     return false;
   }
   Catalog *catalog = exec_ctx_->GetCatalog();
@@ -49,9 +49,9 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     }
   }
   std::vector<Value> res{};
-  res.push_back(Value(TypeId::INTEGER, size));
+  res.emplace_back(TypeId::INTEGER, size);
   *tuple = Tuple{res, &GetOutputSchema()};
-  is_deleted = true;
+  is_deleted_ = true;
   return true;
 }
 

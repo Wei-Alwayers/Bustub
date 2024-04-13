@@ -13,7 +13,9 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "common/util/hash_util.h"
 #include "execution/executor_context.h"
@@ -35,6 +37,7 @@ struct HashJoinKey {
   }
 };
 }  // namespace bustub
+
 namespace std {
 
 /** Implements std::hash on HashJoinKey */
@@ -92,9 +95,9 @@ class HashJoinExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> right_child_;
 
   std::unordered_map<HashJoinKey, std::vector<Tuple>> left_hash_table_;
-  std::unordered_map<HashJoinKey, bool> is_joined;
+  std::unordered_map<HashJoinKey, bool> is_joined_;
   std::vector<Tuple> result_set_;
-  unsigned long cursor;
+  size_t cursor_;
 };
 
 }  // namespace bustub

@@ -15,15 +15,15 @@ void SortExecutor::Init() {
     result_set_.push_back(tuple);
   }
   std::sort(result_set_.begin(), result_set_.end(), CustomComparator(plan_->order_bys_, plan_->OutputSchema()));
-  cursor = 0;
+  cursor_ = 0;
 }
 
 auto SortExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if (cursor >= result_set_.size()) {
+  if (cursor_ >= result_set_.size()) {
     return false;
   }
-  *tuple = result_set_[cursor];
-  cursor++;
+  *tuple = result_set_[cursor_];
+  cursor_++;
   return true;
 }
 

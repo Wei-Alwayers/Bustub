@@ -13,6 +13,7 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "execution/executor_context.h"
@@ -56,7 +57,7 @@ class SortExecutor : public AbstractExecutor {
 
   std::unique_ptr<AbstractExecutor> child_executor_;
   std::vector<Tuple> result_set_;
-  unsigned long cursor;
+  size_t cursor_;
 };
 
 // 函数对象，用于动态生成比较器
@@ -65,12 +66,12 @@ struct CustomComparator {
   Schema schema_;
 
   // 构造函数，接收排序列的索引
-  CustomComparator(const std::vector<std::pair<OrderByType, AbstractExpressionRef>> &order_bys, const Schema schema)
-      : order_bys_(order_bys), schema_(schema) {}
+  CustomComparator(std::vector<std::pair<OrderByType, AbstractExpressionRef>> order_bys, Schema  schema)
+      : order_bys_(std::move(order_bys)), schema_(std::move(schema)) {}
 
   // 重载 () 运算符，实现比较器功能
-  bool operator()(const Tuple &lhs, const Tuple &rhs) const {
-    for (std::pair<OrderByType, AbstractExpressionRef> order_by : order_bys_) {
+  auto operator()(const Tuple &lhs, const Tuple &rhs) const -> bool {
+    for (const std::pair<OrderByType, AbstractExpressionRef> &order_by : order_bys_) {
       Value left_value = order_by.second->Evaluate(&lhs, schema_);
       Value right_value = order_by.second->Evaluate(&rhs, schema_);
       if (order_by.first == OrderByType::ASC || order_by.first == OrderByType::DEFAULT) {

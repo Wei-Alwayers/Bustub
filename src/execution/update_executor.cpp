@@ -22,11 +22,11 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
 void UpdateExecutor::Init() {
   table_info_ = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
   child_executor_->Init();
-  is_updated = false;
+  is_updated_ = false;
 }
 
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  if (is_updated) {
+  if (is_updated_) {
     return false;
   }
   Catalog *catalog = exec_ctx_->GetCatalog();
@@ -52,8 +52,9 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     std::vector<Value> values;
     const Schema *schema = &exec_ctx_->GetCatalog()->GetTable(plan_->TableOid())->schema_;
     int cols_size = plan_->target_expressions_.size();
+    values.reserve(cols_size);
     for (int i = 0; i < cols_size; i++) {
-      values.push_back(plan_->target_expressions_[i]->Evaluate(&child_tuple, *schema));
+      values.emplace_back(plan_->target_expressions_[i]->Evaluate(&child_tuple, *schema));
     }
     Tuple insert_tuple = Tuple(values, schema);
     RID insert_rid = table->InsertTuple(meta, insert_tuple, nullptr, nullptr, plan_->TableOid()).value();
@@ -67,9 +68,9 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     size++;
   }
   std::vector<Value> res{};
-  res.push_back(Value(TypeId::INTEGER, size));
+  res.emplace_back(TypeId::INTEGER, size);
   *tuple = Tuple{res, &GetOutputSchema()};
-  is_updated = true;
+  is_updated_ = true;
   return true;
 }
 

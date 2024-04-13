@@ -20,19 +20,16 @@ LimitExecutor::LimitExecutor(ExecutorContext *exec_ctx, const LimitPlanNode *pla
 
 void LimitExecutor::Init() {
   child_executor_->Init();
-  cursor = 0;
+  cursor_ = 0;
 }
 
 auto LimitExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if (cursor >= plan_->GetLimit()) {
+  if (cursor_ >= plan_->GetLimit()) {
     return false;
   }
   bool is_find = child_executor_->Next(tuple, rid);
-  cursor++;
-  if (!is_find) {
-    return false;
-  }
-  return true;
+  cursor_++;
+  return is_find;
 }
 
 }  // namespace bustub

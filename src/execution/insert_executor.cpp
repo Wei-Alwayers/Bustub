@@ -47,7 +47,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     }
   }
   std::vector<Value> res{};
-  res.push_back(Value(TypeId::INTEGER, size));
+  res.emplace_back(TypeId::INTEGER, size);
   *tuple = Tuple{res, &GetOutputSchema()};
   is_inserted_ = true;
   return true;
