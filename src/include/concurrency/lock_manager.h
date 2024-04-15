@@ -65,13 +65,39 @@ class LockManager {
   class LockRequestQueue {
    public:
     /** List of lock requests for the same resource (table or row) */
-    std::list<LockRequest *> request_queue_;
+    std::list<std::shared_ptr<LockRequest>> request_queue_;
     /** For notifying blocked transactions on this rid */
     std::condition_variable cv_;
     /** txn_id of an upgrading transaction (if any) */
     txn_id_t upgrading_ = INVALID_TXN_ID;
     /** coordination */
     std::mutex latch_;
+
+    // 添加 LockRequest 到队列
+    void AddLockRequest(std::shared_ptr<LockRequest> request) {
+      // 使用互斥锁保护共享资源 request_queue_
+      std::lock_guard<std::mutex> lock(latch_);
+      request_queue_.push_back(request);
+
+      // 通知等待的线程
+      cv_.notify_all();
+    }
+
+    // 从队列中删除指定的 LockRequest
+    bool RemoveLockRequest(LockMode *lock_mode, int txn_id) {
+      std::lock_guard<std::mutex> lock(latch_);
+
+      // 使用迭代器遍历队列，查找要删除的元素
+      for (auto it = request_queue_.begin(); it != request_queue_.end(); ++it) {
+        if ((*it)->txn_id_ == txn_id && (*it)->granted_) {
+          // 找到要删除的元素，使用 erase() 方法删除
+          *lock_mode = (*it)->lock_mode_;
+          request_queue_.erase(it);
+          return true;
+        }
+      }
+      return false;
+    }
   };
 
   /**
@@ -321,6 +347,9 @@ class LockManager {
   auto CheckAppropriateLockOnTable(Transaction *txn, const table_oid_t &oid, LockMode row_lock_mode) -> bool;
   auto FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
                  std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool;
+  void InsertTxnTableLockSet(Transaction *txn, LockMode lock_mode, const table_oid_t &oid);
+  void DeleteTxnTableLockSet(Transaction *txn, LockMode lock_mode, const table_oid_t &oid);
+  void TransactionStateUpdate(Transaction *txn, LockMode lock_mode);
   void UnlockAll();
 
   /** Structure that holds lock requests for a given table oid */
