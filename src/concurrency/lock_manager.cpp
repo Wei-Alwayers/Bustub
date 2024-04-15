@@ -46,9 +46,11 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::ATTEMPTED_UNLOCK_BUT_NO_LOCK_HELD);
   }
+  // TODO: 检查该table的row有无lock
   std::shared_ptr<LockRequestQueue> lock_request_queue = table_lock_map_[oid];
   LockMode lock_mode;
   if(lock_request_queue->RemoveLockRequest(&lock_mode, txn->GetTransactionId())){
+    // TODO：需要通知其他txn获取resource
     DeleteTxnTableLockSet(txn, lock_mode, oid);
     TransactionStateUpdate(txn, lock_mode);
   }
@@ -114,6 +116,7 @@ auto LockManager::UpgradeLockTable(Transaction *txn, LockMode lock_mode, const t
           txn->SetState(TransactionState::ABORTED);
           throw TransactionAbortException(txn->GetTransactionId(), AbortReason::UPGRADE_CONFLICT);
         }
+        return false;
       }
       txn->SetState(TransactionState::ABORTED);
       throw TransactionAbortException(txn->GetTransactionId(), AbortReason::INCOMPATIBLE_UPGRADE);
