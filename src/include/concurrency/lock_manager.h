@@ -98,34 +98,6 @@ class LockManager {
       }
       return false;
     }
-
-    // 检查一个txn是否拥有锁
-    bool CheckLockRequest(LockMode *lock_mode, int txn_id) {
-      std::lock_guard<std::mutex> lock(latch_);
-      for (auto it = request_queue_.begin(); it != request_queue_.end(); ++it) {
-        if ((*it)->txn_id_ == txn_id && (*it)->granted_) {
-          *lock_mode = (*it)->lock_mode_;
-          return true;
-        }
-      }
-      return false;
-    }
-
-    // TODO:怎么把检查和升级放到一起
-    bool CheckLockUpgrade(LockMode request_lock_mode, int txn_id) {
-      std::lock_guard<std::mutex> lock(latch_);
-      for (auto it = request_queue_.begin(); it != request_queue_.end(); ++it) {
-        if ((*it)->txn_id_ == txn_id && (*it)->granted_) {
-          if(upgrading_ == INVALID_TXN_ID || upgrading_ == txn_id){
-            (*it)->lock_mode_ = request_lock_mode;
-            upgrading_ = txn_id;
-            return true;
-          }
-          return false;
-        }
-      }
-      return false;
-    }
   };
 
   /**
@@ -363,7 +335,7 @@ class LockManager {
 
   TransactionManager *txn_manager_;
 
-  static auto CanLockUpgrade(LockMode curr_lock_mode, LockMode requested_lock_mode) -> bool;
+
  private:
   /** Spring 2023 */
   /* You are allowed to modify all functions below. */
@@ -372,7 +344,7 @@ class LockManager {
   auto AreLocksCompatible(LockMode l1, LockMode l2) -> bool;
   auto CanTxnTakeLock(Transaction *txn, LockMode lock_mode) -> bool;
   void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue);
-
+  auto CanLockUpgrade(LockMode curr_lock_mode, LockMode requested_lock_mode) -> bool;
   auto CheckAppropriateLockOnTable(Transaction *txn, const table_oid_t &oid, LockMode row_lock_mode) -> bool;
   auto FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
                  std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool;
