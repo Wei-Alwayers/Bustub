@@ -73,16 +73,6 @@ class LockManager {
     /** coordination */
     std::mutex latch_;
 
-    // 添加 LockRequest 到队列
-    void AddLockRequest(std::shared_ptr<LockRequest> request) {
-      // 使用互斥锁保护共享资源 request_queue_
-      std::lock_guard<std::mutex> lock(latch_);
-      request_queue_.push_back(request);
-
-      // 通知等待的线程
-      cv_.notify_all();
-    }
-
     // 从队列中删除指定的 LockRequest
     bool RemoveLockRequest(LockMode *lock_mode, int txn_id) {
       std::lock_guard<std::mutex> lock(latch_);
@@ -93,6 +83,8 @@ class LockManager {
           // 找到要删除的元素，使用 erase() 方法删除
           *lock_mode = (*it)->lock_mode_;
           request_queue_.erase(it);
+          // 通知等待的线程
+          cv_.notify_all();
           return true;
         }
       }

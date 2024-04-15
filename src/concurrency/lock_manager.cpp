@@ -20,18 +20,20 @@ namespace bustub {
 
 auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool {
   if(CanTxnTakeLock(txn, lock_mode)) {
-    std::lock_guard<std::mutex> lock(table_lock_map_latch_);
-    if (table_lock_map_.find(oid) == table_lock_map_.end()) {
-      // table之前没有任何lock
-      std::shared_ptr<LockRequest> lock_request =
-          std::make_shared<LockRequest>(txn->GetTransactionId(), lock_mode, oid);
-      // 直接响应lock request
-      lock_request->granted_ = true;
-      auto lock_request_queue = std::make_shared<LockRequestQueue>();
-      lock_request_queue->AddLockRequest(lock_request);
-      table_lock_map_[oid] = lock_request_queue;
-      InsertTxnTableLockSet(txn, lock_mode, oid);
-      return true;
+    {
+      std::lock_guard<std::mutex> lock(table_lock_map_latch_);
+      if (table_lock_map_.find(oid) == table_lock_map_.end()) {
+        // table之前没有任何lock
+        std::shared_ptr<LockRequest> lock_request =
+            std::make_shared<LockRequest>(txn->GetTransactionId(), lock_mode, oid);
+        // 直接响应lock request
+        lock_request->granted_ = true;
+        auto lock_request_queue = std::make_shared<LockRequestQueue>();
+        lock_request_queue->request_queue_.emplace_back(lock_request);
+        InsertTxnTableLockSet(txn, lock_mode, oid);
+        table_lock_map_[oid] = lock_request_queue;
+        return true;
+      }
     }
     // 该table正在被lock
     return UpgradeLockTable(txn, lock_mode, oid);
@@ -50,7 +52,6 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
   std::shared_ptr<LockRequestQueue> lock_request_queue = table_lock_map_[oid];
   LockMode lock_mode;
   if(lock_request_queue->RemoveLockRequest(&lock_mode, txn->GetTransactionId())){
-    // TODO：需要通知其他txn获取resource
     DeleteTxnTableLockSet(txn, lock_mode, oid);
     TransactionStateUpdate(txn, lock_mode);
   }
@@ -62,7 +63,24 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
 }
 
 auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool {
-  return true;
+  if(CanTxnTakeLock(txn, lock_mode)) {
+    std::lock_guard<std::mutex> lock(table_lock_map_latch_);
+    if (table_lock_map_.find(oid) == table_lock_map_.end()) {
+      // table之前没有任何lock
+      std::shared_ptr<LockRequest> lock_request =
+          std::make_shared<LockRequest>(txn->GetTransactionId(), lock_mode, oid);
+      // 直接响应lock request
+      lock_request->granted_ = true;
+      auto lock_request_queue = std::make_shared<LockRequestQueue>();
+      lock_request_queue->request_queue_.emplace_back(lock_request);
+      table_lock_map_[oid] = lock_request_queue;
+      InsertTxnTableLockSet(txn, lock_mode, oid);
+      return true;
+    }
+    // 该table正在被lock
+    return UpgradeLockTable(txn, lock_mode, oid);
+  }
+  return false;
 }
 
 auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID &rid, bool force) -> bool {
@@ -94,7 +112,10 @@ void LockManager::RunCycleDetection() {
 
 auto LockManager::UpgradeLockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool{
   std::shared_ptr<LockRequestQueue> lock_request_queue;
-  lock_request_queue = table_lock_map_[oid];
+  {
+    std::lock_guard<std::mutex> lock(table_lock_map_latch_);
+    lock_request_queue = table_lock_map_[oid];
+  }
   // 检查当前事务是否拥有该锁
   LockMode cur_lock_mode;
   {
@@ -106,32 +127,97 @@ auto LockManager::UpgradeLockTable(Transaction *txn, LockMode lock_mode, const t
         if (CanLockUpgrade(cur_lock_mode, lock_mode)) {
           // 升级锁
           if (cur_lock_mode != lock_mode) {
-            // 检查该table有无其他txn在升级
-            if(lock_request_queue->upgrading_ == INVALID_TXN_ID || lock_request_queue->upgrading_ == txn->GetTransactionId()){
-              (*it)->lock_mode_ = lock_mode;
+            if(lock_request_queue->upgrading_ == INVALID_TXN_ID){
+              // upgrade
               lock_request_queue->upgrading_ = txn->GetTransactionId();
+              // 释放之前的锁
               DeleteTxnTableLockSet(txn, cur_lock_mode, oid);
-              InsertTxnTableLockSet(txn, lock_mode, oid);
-              return true;
+              lock_request_queue->request_queue_.erase(it);
             }
-            txn->SetState(TransactionState::ABORTED);
-            throw TransactionAbortException(txn->GetTransactionId(), AbortReason::UPGRADE_CONFLICT);
+            else{
+              txn->SetState(TransactionState::ABORTED);
+              throw TransactionAbortException(txn->GetTransactionId(), AbortReason::UPGRADE_CONFLICT);
+            }
           }
-          return true;
+          else {
+            // 和cur mode一致，不需要任何处理
+            return true;
+          }
         }
         txn->SetState(TransactionState::ABORTED);
         throw TransactionAbortException(txn->GetTransactionId(), AbortReason::INCOMPATIBLE_UPGRADE);
       }
     }
   }
-  // 没有锁，增加一个请求
+  // 增加一个请求
   std::shared_ptr<LockRequest> lock_request =
       std::make_shared<LockRequest>(txn->GetTransactionId(), lock_mode, oid);
-  // TODO: 似乎不能立即granted吧
-  lock_request->granted_ = true;
-  lock_request_queue->AddLockRequest(lock_request);
-  InsertTxnTableLockSet(txn, lock_mode, oid);
-  table_lock_map_[oid] = lock_request_queue;
+  {
+    std::unique_lock<std::mutex> lock(lock_request_queue->latch_);
+    // 是否和当前锁兼容
+    bool is_not_compatible = false;
+    for (const auto& request : lock_request_queue->request_queue_) {
+      if (request->granted_ && !AreLocksCompatible(lock_mode, request->lock_mode_)) {
+          is_not_compatible = true;
+          break;
+      }
+    }
+    if(!is_not_compatible){
+      // 可以获得锁
+      lock_request->granted_ = true;
+      lock_request_queue->request_queue_.push_back(lock_request);
+      {
+        std::lock_guard<std::mutex> map_lock(table_lock_map_latch_);
+        table_lock_map_[oid] = lock_request_queue;
+      }
+
+      InsertTxnTableLockSet(txn, lock_mode, oid);
+    }
+    else{
+      // 等待资源释放
+      lock_request_queue->request_queue_.push_back(lock_request);
+      lock_request_queue->cv_.wait(lock, [&lock_request, &lock_request_queue, this]() {
+        //考虑是否和当前granted锁兼容
+        bool is_not_compatible = false;
+        for (const auto& request : lock_request_queue->request_queue_) {
+          if (request->granted_ && !AreLocksCompatible(lock_request->lock_mode_, request->lock_mode_)) {
+              is_not_compatible = true;
+              break;
+            }
+        }
+        if(is_not_compatible){
+          return false;
+        }
+        // upgrading优先级最高
+        if(lock_request_queue->upgrading_ != INVALID_TXN_ID){
+          if(lock_request_queue->upgrading_ == lock_request->txn_id_){
+            return true;
+          }
+          return false;
+        }
+        // FIFO
+        bool is_first = false;
+        for (const auto& request : lock_request_queue->request_queue_) {
+          if (!request->granted_) {
+            if(request->txn_id_ == lock_request->txn_id_){
+              is_first = true;
+            }
+            break;
+          }
+        }
+        return is_first;
+      });
+      // 获取锁
+      for (const auto& request : lock_request_queue->request_queue_) {
+        if(request->txn_id_ == lock_request->txn_id_){
+          request->granted_ = true;
+          break;
+        }
+      }
+      InsertTxnTableLockSet(txn, lock_mode, oid);
+      lock_request_queue->cv_.notify_all();
+    }
+  }
   return true;
 }
 
@@ -254,6 +340,24 @@ void LockManager::TransactionStateUpdate(Transaction *txn, LockMode lock_mode){
     if(lock_mode == LockMode::EXCLUSIVE){
       txn->SetState(TransactionState::SHRINKING);
     }
+  }
+}
+
+auto LockManager::AreLocksCompatible(LockMode l1, LockMode l2) -> bool {
+  // Check compatibility based on LockMode values
+  switch (l1) {
+    case LockMode::SHARED:
+      return (l2 == LockMode::SHARED || l2 == LockMode::INTENTION_SHARED || l2 == LockMode::SHARED_INTENTION_EXCLUSIVE);
+    case LockMode::EXCLUSIVE:
+      return (l2 == LockMode::SHARED_INTENTION_EXCLUSIVE);
+    case LockMode::INTENTION_SHARED:
+      return (l2 == LockMode::SHARED || l2 == LockMode::INTENTION_SHARED);
+    case LockMode::INTENTION_EXCLUSIVE:
+      return (l2 == LockMode::SHARED_INTENTION_EXCLUSIVE);
+    case LockMode::SHARED_INTENTION_EXCLUSIVE:
+      return (l2 == LockMode::SHARED_INTENTION_EXCLUSIVE);
+    default:
+      return false; // Default case if invalid LockMode is provided
   }
 }
 }  // namespace bustub
