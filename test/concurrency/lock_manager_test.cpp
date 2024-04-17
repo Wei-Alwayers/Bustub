@@ -110,7 +110,7 @@ void TableLockTest1() {
     CheckCommitted(txns[txn_id]);
 
     /** All locks should be dropped */
-//    CheckTableLockSizes(txns[txn_id], 0, 0, 0, 0, 0);
+    CheckTableLockSizes(txns[txn_id], 0, 0, 0, 0, 0);
   };
 
   std::vector<std::thread> threads;
@@ -209,7 +209,7 @@ void RowLockTest1() {
     delete txns[i];
   }
 }
-TEST(LockManagerTest, DISABLED_RowLockTest1) { RowLockTest1(); }  // NOLINT
+TEST(LockManagerTest, RowLockTest1) { RowLockTest1(); }  // NOLINT
 
 void TwoPLTest1() {
   LockManager lock_mgr{};
@@ -320,6 +320,6 @@ void AbortTest1() {
   delete txn3;
 }
 
-TEST(LockManagerTest, DISABLED_RowAbortTest1) { AbortTest1(); }  // NOLINT
+TEST(LockManagerTest, RowAbortTest1) { AbortTest1(); }  // NOLINT
 
 }  // namespace bustub
