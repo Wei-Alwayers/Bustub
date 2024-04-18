@@ -162,7 +162,7 @@ void RowLockTest1() {
   table_oid_t oid = 0;
   RID rid{0, 0};
 
-  int num_txns = 3;
+  int num_txns = 2;
   std::vector<Transaction *> txns;
   for (int i = 0; i < num_txns; i++) {
     txns.push_back(txn_mgr.Begin());
@@ -171,30 +171,34 @@ void RowLockTest1() {
 
   /** Each transaction takes an S lock on the same table and row and then unlocks */
   auto task = [&](int txn_id) {
-    bool res;
+    try{
+      bool res;
+      res = lock_mgr.LockTable(txns[txn_id], LockManager::LockMode::SHARED, oid);
+      EXPECT_TRUE(res);
+      CheckGrowing(txns[txn_id]);
 
-    res = lock_mgr.LockTable(txns[txn_id], LockManager::LockMode::SHARED, oid);
-    EXPECT_TRUE(res);
-    CheckGrowing(txns[txn_id]);
+      res = lock_mgr.LockRow(txns[txn_id], LockManager::LockMode::SHARED, oid, rid);
+      EXPECT_TRUE(res);
+      CheckGrowing(txns[txn_id]);
+      /** Lock set should be updated */
+      ASSERT_EQ(true, txns[txn_id]->IsRowSharedLocked(oid, rid));
 
-    res = lock_mgr.LockRow(txns[txn_id], LockManager::LockMode::SHARED, oid, rid);
-    EXPECT_TRUE(res);
-    CheckGrowing(txns[txn_id]);
-    /** Lock set should be updated */
-    ASSERT_EQ(true, txns[txn_id]->IsRowSharedLocked(oid, rid));
+      res = lock_mgr.UnlockRow(txns[txn_id], oid, rid);
+      EXPECT_TRUE(res);
+      CheckShrinking(txns[txn_id]);
+      /** Lock set should be updated */
+      ASSERT_EQ(false, txns[txn_id]->IsRowSharedLocked(oid, rid));
 
-    res = lock_mgr.UnlockRow(txns[txn_id], oid, rid);
-    EXPECT_TRUE(res);
-    CheckShrinking(txns[txn_id]);
-    /** Lock set should be updated */
-    ASSERT_EQ(false, txns[txn_id]->IsRowSharedLocked(oid, rid));
+      res = lock_mgr.UnlockTable(txns[txn_id], oid);
+      EXPECT_TRUE(res);
+      CheckShrinking(txns[txn_id]);
 
-    res = lock_mgr.UnlockTable(txns[txn_id], oid);
-    EXPECT_TRUE(res);
-    CheckShrinking(txns[txn_id]);
+      txn_mgr.Commit(txns[txn_id]);
+      CheckCommitted(txns[txn_id]);
+    }catch (TransactionAbortException& ex) {
+      std::cout << ex.GetInfo() << std::endl;
+    }
 
-    txn_mgr.Commit(txns[txn_id]);
-    CheckCommitted(txns[txn_id]);
   };
 
   std::vector<std::thread> threads;

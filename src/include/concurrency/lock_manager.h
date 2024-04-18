@@ -331,6 +331,7 @@ class LockManager {
  private:
   /** Spring 2023 */
   /* You are allowed to modify all functions below. */
+  auto GrantLock(txn_id_t txn_id, std::shared_ptr<LockRequestQueue> lock_request_queue, LockMode lock_mode) -> bool;
 
   /**
    * table lock 升级
