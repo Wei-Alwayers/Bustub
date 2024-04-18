@@ -86,23 +86,26 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
     txn->UnlockTxn();
     while (!GrantLock(txn_id, lock_request_queue,lock_mode)){
       lock_request_queue->cv_.wait(lock);
+      if(txn->GetState() == TransactionState::ABORTED){
+        txn->UnlockTxn();
+        for (auto it = lock_request_queue->request_queue_.begin(); it != lock_request_queue->request_queue_.end(); ++it) {
+          if ((*it)->txn_id_ == txn_id){
+            lock_request_queue->request_queue_.erase(it);
+          }
+        }
+        return false;
+      }
     }
     txn->LockTxn();
     for (auto it = lock_request_queue->request_queue_.begin(); it != lock_request_queue->request_queue_.end(); ++it) {
       if ((*it)->txn_id_ == txn_id) {
-        if(txn->GetState() == TransactionState::ABORTED){
-          lock_request_queue->request_queue_.erase(it);
-          txn->UnlockTxn();
-          return false;
-        }
-        else{
-          // 可以获得锁
-          (*it)->granted_ = true;
-          InsertTxnTableLockSet(txn, lock_mode, oid);
-          fmt::print("Txn {} locked table {} in {} mode successfully!\n", txn->GetTransactionId(), oid, lock_mode);
-          lock_request_queue->cv_.notify_all();
-          break;
-        }
+        // 可以获得锁
+        (*it)->granted_ = true;
+        InsertTxnTableLockSet(txn, lock_mode, oid);
+        fmt::print("Txn {} locked table {} in {} mode successfully!\n", txn->GetTransactionId(), oid, lock_mode);
+        lock_request_queue->cv_.notify_all();
+        break;
+
       }
     }
     txn->UnlockTxn();
@@ -337,21 +340,147 @@ void LockManager::UnlockAll() {
   // You probably want to unlock all table and txn locks here.
 }
 
-void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {}
+void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
+  waits_for_latch_.lock();
+  // 在 waits_for_ 中查找 t1 对应的向量
+  auto it = waits_for_.find(t1);
+  // 如果 t1 在 waits_for_ 中不存在，则创建一个新的向量并插入
+  if (it == waits_for_.end()) {
+    waits_for_[t1] = {t2};  // 使用列表初始化插入 t2
+  } else {
+    // 如果 t1 在 waits_for_ 中已经存在，则检查是否已经包含 t2
+    auto& wait_list = it->second;
+    if (std::find(wait_list.begin(), wait_list.end(), t2) == wait_list.end()) {
+      // 如果向量中没有 t2，则插入 t2
+      auto insert_pos = std::lower_bound(wait_list.begin(), wait_list.end(), t2);
+      wait_list.insert(insert_pos, t2);
+    }
+  }
+  waits_for_latch_.unlock();
+}
 
-void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {}
 
-auto LockManager::HasCycle(txn_id_t *txn_id) -> bool { return false; }
+void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
+  waits_for_latch_.lock();
+  // 在 waits_for_ 中查找 t1 对应的向量
+  auto it = waits_for_.find(t1);
+  // 如果找到了 t1 对应的向量
+  if (it != waits_for_.end()) {
+    // 在 t1 对应的向量中查找 t2，并删除
+    auto& vec = it->second;
+    vec.erase(std::remove(vec.begin(), vec.end(), t2), vec.end());
+    // 如果 t1 对应的向量已经为空，可以选择将整个键值对从 waits_for_ 中删除
+    if (vec.empty()) {
+      waits_for_.erase(it);
+    }
+  }
+  waits_for_latch_.unlock();
+}
+
+
+auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
+  std::unordered_set<txn_id_t> on_path;
+  std::unordered_set<txn_id_t> visited;
+  // 获取所有事务ID
+  std::vector<txn_id_t> transactionIds;
+  transactionIds.reserve(waits_for_.size());
+  for (const auto& entry : waits_for_) {
+      transactionIds.push_back(entry.first);
+  }
+  // 对事务ID排序（按照从小到大的顺序）
+  std::sort(transactionIds.begin(), transactionIds.end());
+  for(auto txn : transactionIds){
+    if(visited.find(txn) != visited.end()){
+      // 没有查找过
+      if(FindCycle(txn, on_path, visited, txn_id)){
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+auto LockManager::FindCycle(txn_id_t source_txn, std::unordered_set<txn_id_t> &on_path, std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool{
+  on_path.insert(source_txn);
+  for(auto neighbor : waits_for_[source_txn]){
+    if(on_path.find(neighbor) != on_path.end()){
+      // 有环
+      int max_value = std::numeric_limits<int>::min();
+      // 找到youngest txn
+      for (int num : on_path) {
+        if (num > max_value) {
+          max_value = num;
+        }
+      }
+      *abort_txn_id = max_value;
+      return true;
+    }
+    if(FindCycle(neighbor, on_path, visited, abort_txn_id)){
+      return true;
+    }
+  }
+  on_path.erase(source_txn);
+  visited.insert(source_txn);
+  return false;
+}
+
 
 auto LockManager::GetEdgeList() -> std::vector<std::pair<txn_id_t, txn_id_t>> {
   std::vector<std::pair<txn_id_t, txn_id_t>> edges(0);
+  waits_for_latch_.lock();
+  // 遍历 waits_for_ 中的每个键值对
+  for (const auto& entry : waits_for_) {
+    txn_id_t t1 = entry.first;  // 获取事务 t1
+    const auto& wait_list = entry.second;  // 获取 t1 等待的事务列表
+
+    // 遍历 t1 等待的每个事务 t2，并将 (t1, t2) 添加到边列表中
+    for (txn_id_t t2 : wait_list) {
+      edges.emplace_back(t1, t2);
+    }
+  }
+  waits_for_latch_.unlock();
   return edges;
 }
 
 void LockManager::RunCycleDetection() {
   while (enable_cycle_detection_) {
     std::this_thread::sleep_for(cycle_detection_interval);
-    {  // TODO(students): detect deadlock
+    {
+      // 构建wait for图
+      waits_for_.clear();
+      table_lock_map_latch_.lock();
+      for (auto & it : table_lock_map_) {
+        std::shared_ptr<LockRequestQueue> lock_queue = it.second;
+        lock_queue->latch_.lock();
+        for (const auto& request : lock_queue->request_queue_){
+          if(!request->granted_){
+            for (const auto& granted_request : lock_queue->request_queue_){
+              if(granted_request->granted_){
+                AddEdge(request->txn_id_, granted_request->txn_id_);
+              }
+            }
+          }
+        }
+      }
+      row_lock_map_latch_.lock();
+      for (auto & it : row_lock_map_) {
+        std::shared_ptr<LockRequestQueue> lock_queue = it.second;
+        lock_queue->latch_.lock();
+        for (const auto& request : lock_queue->request_queue_){
+          if(!request->granted_){
+            for (const auto& granted_request : lock_queue->request_queue_){
+              if(granted_request->granted_){
+                AddEdge(request->txn_id_, granted_request->txn_id_);
+              }
+            }
+          }
+        }
+      }
+      txn_id_t txn_id;
+      while (HasCycle(&txn_id)){
+        waits_for_.erase(txn_id);
+        txn_manager_->Abort(txn_manager_->GetTransaction(txn_id));
+      }
     }
   }
 }
