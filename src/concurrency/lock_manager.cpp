@@ -32,7 +32,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
       lock_request_queue->request_queue_.emplace_back(lock_request);
       InsertTxnTableLockSet(txn, lock_mode, oid);
       table_lock_map_[oid] = lock_request_queue;
-      fmt::print("Txn {} locked table {} in {} mode successfully!\n", txn->GetTransactionId(), oid, lock_mode);
+      fmt::print("[Lock] Txn {} locked table {} in {} mode successfully!\n", txn->GetTransactionId(), oid, lock_mode);
       table_lock_map_latch_.unlock();
       txn->UnlockTxn();
       return true;
@@ -55,7 +55,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
               // upgrade
               lock_request_queue->upgrading_ = txn->GetTransactionId();
               // 释放之前的锁
-              fmt::print("[upgrading...]Txn {} unlocked table {} cur mode {}!\n", txn->GetTransactionId(), oid, cur_lock_mode);
+              fmt::print("[Upgrading] Txn {} unlocked table {} cur mode {}!\n", txn->GetTransactionId(), oid, cur_lock_mode);
               DeleteTxnTableLockSet(txn, cur_lock_mode, oid);
               it = lock_request_queue->request_queue_.erase(it);
             }
@@ -85,11 +85,13 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
     txn_id_t txn_id = txn->GetTransactionId();
     txn->UnlockTxn();
     while (!GrantLock(txn_id, lock_request_queue,lock_mode)){
+      fmt::print("[Waiting] Txn{} wait for lock on table{} in {} mode!\n", txn->GetTransactionId(), oid, lock_mode);
       lock_request_queue->cv_.wait(lock);
       if(txn->GetState() == TransactionState::ABORTED){
         txn->UnlockTxn();
         for (auto it = lock_request_queue->request_queue_.begin(); it != lock_request_queue->request_queue_.end(); ++it) {
           if ((*it)->txn_id_ == txn_id){
+            fmt::print("[Abort] Txn{} forgive to lock table{} in {} mode!\n", txn->GetTransactionId(), oid, lock_mode);
             lock_request_queue->request_queue_.erase(it);
           }
         }
@@ -102,10 +104,9 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
         // 可以获得锁
         (*it)->granted_ = true;
         InsertTxnTableLockSet(txn, lock_mode, oid);
-        fmt::print("Txn {} locked table {} in {} mode successfully!\n", txn->GetTransactionId(), oid, lock_mode);
+        fmt::print("[Lock] Txn {} locked table {} in {} mode successfully!\n", txn->GetTransactionId(), oid, lock_mode);
         lock_request_queue->cv_.notify_all();
         break;
-
       }
     }
     txn->UnlockTxn();
@@ -180,7 +181,7 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
     table_lock_map_latch_.unlock();
     txn->LockTxn();
     DeleteTxnTableLockSet(txn, lock_mode, oid);
-    fmt::print("Txn {} unlocked table {}!\n", txn->GetTransactionId(), oid);
+    fmt::print("[Unlock] Txn {} unlocked table {}!\n", txn->GetTransactionId(), oid);
     TransactionStateUpdate(txn, lock_mode);
     txn->UnlockTxn();
   }
@@ -214,12 +215,12 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
       lock_request_queue->request_queue_.emplace_back(lock_request);
       InsertTxnRowLockSet(txn, lock_mode, oid, rid);
       row_lock_map_[rid] = lock_request_queue;
-      fmt::print("Txn {} locked table {} RID {} in {} mode successfully!\n", txn->GetTransactionId(), oid, rid.ToString(), lock_mode);
+      fmt::print("[Lock] Txn {} locked table {} RID {},{} in {} mode successfully!\n", txn->GetTransactionId(), oid, rid.GetPageId(), rid.GetSlotNum(), lock_mode);
       row_lock_map_latch_.unlock();
       txn->UnlockTxn();
       return true;
     }
-    // 该table正在被lock
+    // 该row正在被lock
     std::shared_ptr<LockRequestQueue> lock_request_queue;
     lock_request_queue = row_lock_map_[rid];
     row_lock_map_latch_.unlock();
@@ -236,7 +237,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
               // upgrade
               lock_request_queue->upgrading_ = txn->GetTransactionId();
               // 释放之前的锁
-              fmt::print("[upgrading...]Txn {} unlocked table {} rid {} cur mode {}!\n", txn->GetTransactionId(), oid, rid.ToString(), cur_lock_mode);
+              fmt::print("[upgrading]Txn {} unlocked table {} rid {},{} cur mode {}!\n", txn->GetTransactionId(), oid, rid.GetPageId(), rid.GetSlotNum(), cur_lock_mode);
               DeleteTxnRowLockSet(txn, cur_lock_mode, oid, rid);
               it = lock_request_queue->request_queue_.erase(it);
             }
@@ -267,24 +268,28 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     txn_id_t txn_id = txn->GetTransactionId();
     txn->UnlockTxn();
     while (!GrantLock(txn_id, lock_request_queue,lock_mode)){
+      fmt::print("[Waiting] Txn{} wait for lock on table{} rid {},{} in {} mode!\n", txn->GetTransactionId(), oid, rid.GetPageId(), rid.GetSlotNum(), lock_mode);
       lock_request_queue->cv_.wait(lock);
+      if(txn->GetState() == TransactionState::ABORTED){
+        txn->UnlockTxn();
+        for (auto it = lock_request_queue->request_queue_.begin(); it != lock_request_queue->request_queue_.end(); ++it) {
+          if ((*it)->txn_id_ == txn_id){
+            fmt::print("[Abort] Txn{} forgive to lock table{} rid{},{} in {} mode!\n", txn->GetTransactionId(), oid, rid.GetPageId(), rid.GetSlotNum(), lock_mode);
+            lock_request_queue->request_queue_.erase(it);
+          }
+        }
+        return false;
+      }
     }
     txn->LockTxn();
     for (auto it = lock_request_queue->request_queue_.begin(); it != lock_request_queue->request_queue_.end(); ++it) {
       if ((*it)->txn_id_ == txn_id) {
-        if(txn->GetState() == TransactionState::ABORTED){
-          lock_request_queue->request_queue_.erase(it);
-          txn->UnlockTxn();
-          return false;
-        }
-        else{
-          // 可以获得锁
-          (*it)->granted_ = true;
-          InsertTxnRowLockSet(txn, lock_mode, oid, rid);
-          fmt::print("Txn {} locked table {} rid {} in {} mode successfully!\n", txn->GetTransactionId(), oid, rid.ToString(), lock_mode);
-          lock_request_queue->cv_.notify_all();
-          break;
-        }
+        // 可以获得锁
+        (*it)->granted_ = true;
+        InsertTxnRowLockSet(txn, lock_mode, oid, rid);
+        fmt::print("[Lock]Txn {} locked table {} rid {},{} in {} mode successfully!\n", txn->GetTransactionId(), oid, rid.GetPageId(), rid.GetSlotNum(), lock_mode);
+        lock_request_queue->cv_.notify_all();
+        break;
       }
     }
     txn->UnlockTxn();
@@ -321,7 +326,7 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
     row_lock_map_latch_.unlock();
     txn->LockTxn();
     DeleteTxnRowLockSet(txn, lock_mode, oid, rid);
-    fmt::print("Txn {} unlocked table {} rid {}", txn->GetTransactionId(), oid, rid.ToString());
+    fmt::print("[Unlock]Txn {} unlocked table {} rid {}", txn->GetTransactionId(), oid, rid.ToString());
     if(!force){
       TransactionStateUpdate(txn, lock_mode);
     }
@@ -390,7 +395,7 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
   // 对事务ID排序（按照从小到大的顺序）
   std::sort(transactionIds.begin(), transactionIds.end());
   for(auto txn : transactionIds){
-    if(visited.find(txn) != visited.end()){
+    if(visited.find(txn) == visited.end()){
       // 没有查找过
       if(FindCycle(txn, on_path, visited, txn_id)){
         return true;
@@ -461,6 +466,7 @@ void LockManager::RunCycleDetection() {
             }
           }
         }
+        lock_queue->latch_.unlock();
       }
       row_lock_map_latch_.lock();
       for (auto & it : row_lock_map_) {
@@ -475,12 +481,15 @@ void LockManager::RunCycleDetection() {
             }
           }
         }
+        lock_queue->latch_.unlock();
       }
       txn_id_t txn_id;
       while (HasCycle(&txn_id)){
-        waits_for_.erase(txn_id);
+        fmt::print("[DeadLock] find cycle, aborting {}\n", txn_id);
         txn_manager_->Abort(txn_manager_->GetTransaction(txn_id));
       }
+      row_lock_map_latch_.unlock();
+      table_lock_map_latch_.unlock();
     }
   }
 }
