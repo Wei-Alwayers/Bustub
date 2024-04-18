@@ -72,24 +72,6 @@ class LockManager {
     txn_id_t upgrading_ = INVALID_TXN_ID;
     /** coordination */
     std::mutex latch_;
-
-    // 从队列中删除指定的 LockRequest
-    bool RemoveLockRequest(LockMode *lock_mode, int txn_id) {
-      std::lock_guard<std::mutex> lock(latch_);
-
-      // 使用迭代器遍历队列，查找要删除的元素
-      for (auto it = request_queue_.begin(); it != request_queue_.end(); ++it) {
-        if ((*it)->txn_id_ == txn_id && (*it)->granted_) {
-          // 找到要删除的元素，使用 erase() 方法删除
-          *lock_mode = (*it)->lock_mode_;
-          request_queue_.erase(it);
-          // 通知等待的线程
-          cv_.notify_all();
-          return true;
-        }
-      }
-      return false;
-    }
   };
 
   /**

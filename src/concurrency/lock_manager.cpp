@@ -76,6 +76,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
           txn->UnlockTxn();
           throw TransactionAbortException(txn->GetTransactionId(), AbortReason::INCOMPATIBLE_UPGRADE);
         }
+        break;
       }
     }
     // 增加一个请求
@@ -92,7 +93,8 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
         for (auto it = lock_request_queue->request_queue_.begin(); it != lock_request_queue->request_queue_.end(); ++it) {
           if ((*it)->txn_id_ == txn_id){
             fmt::print("[Abort] Txn{} forgive to lock table{} in {} mode!\n", txn->GetTransactionId(), oid, lock_mode);
-            lock_request_queue->request_queue_.erase(it);
+            it = lock_request_queue->request_queue_.erase(it);
+            lock_request_queue->cv_.notify_all();
           }
         }
         return false;
@@ -177,20 +179,25 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
   txn->UnlockTxn();
   std::shared_ptr<LockRequestQueue> lock_request_queue = table_lock_map_[oid];
   LockMode lock_mode;
-  if(lock_request_queue->RemoveLockRequest(&lock_mode, txn->GetTransactionId())){
-    table_lock_map_latch_.unlock();
-    txn->LockTxn();
-    DeleteTxnTableLockSet(txn, lock_mode, oid);
-    fmt::print("[Unlock] Txn {} unlocked table {}!\n", txn->GetTransactionId(), oid);
-    TransactionStateUpdate(txn, lock_mode);
-    txn->UnlockTxn();
+  lock_request_queue->latch_.lock();
+  table_lock_map_latch_.unlock();
+  // 使用迭代器遍历队列，查找要删除的元素
+  for (auto it = lock_request_queue->request_queue_.begin(); it != lock_request_queue->request_queue_.end(); ++it) {
+    if ((*it)->txn_id_ == txn->GetTransactionId() && (*it)->granted_) {
+      // 找到要删除的元素，使用 erase() 方法删除
+      lock_mode = (*it)->lock_mode_;
+      lock_request_queue->request_queue_.erase(it);
+      txn->LockTxn();
+      DeleteTxnTableLockSet(txn, lock_mode, oid);
+      fmt::print("[Unlock] Txn {} unlocked table {}!\n", txn->GetTransactionId(), oid);
+      TransactionStateUpdate(txn, lock_mode);
+      txn->UnlockTxn();
+      break;
+    }
   }
-  else {
-    txn->SetState(TransactionState::ABORTED);
-    table_lock_map_latch_.unlock();
-    txn->UnlockTxn();
-    throw TransactionAbortException(txn->GetTransactionId(), AbortReason::ATTEMPTED_UNLOCK_BUT_NO_LOCK_HELD);
-  }
+  // 通知等待的线程
+  lock_request_queue->latch_.unlock();
+  lock_request_queue->cv_.notify_all();
   return true;
 }
 
@@ -202,6 +209,33 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     txn->SetState(TransactionState::ABORTED);
     txn->UnlockTxn();
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::ATTEMPTED_INTENTION_LOCK_ON_ROW);
+  }
+  if(lock_mode == LockMode::EXCLUSIVE){
+    // 需要对table持有相关锁
+    bool is_table_lock = false;
+    std::shared_ptr<std::unordered_set<table_oid_t>> table_lock_set;
+    table_lock_set = txn->GetExclusiveTableLockSet();
+    if(table_lock_set->find(oid) != table_lock_set->end()){
+      is_table_lock = true;
+    }
+    else{
+      table_lock_set = txn->GetIntentionExclusiveTableLockSet();
+      if(table_lock_set->find(oid) != table_lock_set->end()){
+        is_table_lock = true;
+      }
+      else{
+        table_lock_set = txn->GetSharedIntentionExclusiveTableLockSet();
+        if(table_lock_set->find(oid) != table_lock_set->end()){
+          is_table_lock = true;
+        }
+      }
+    }
+    if(!is_table_lock){
+      txn->SetState(TransactionState::ABORTED);
+      txn->UnlockTxn();
+      throw TransactionAbortException(txn->GetTransactionId(), AbortReason::TABLE_LOCK_NOT_PRESENT);
+    }
+
   }
   if(CanTxnTakeLock(txn, lock_mode)) {
     row_lock_map_latch_.lock();
@@ -259,6 +293,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
           txn->UnlockTxn();
           throw TransactionAbortException(txn->GetTransactionId(), AbortReason::INCOMPATIBLE_UPGRADE);
         }
+        break;
       }
     }
     // 增加一个请求
@@ -275,7 +310,8 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
         for (auto it = lock_request_queue->request_queue_.begin(); it != lock_request_queue->request_queue_.end(); ++it) {
           if ((*it)->txn_id_ == txn_id){
             fmt::print("[Abort] Txn{} forgive to lock table{} rid{},{} in {} mode!\n", txn->GetTransactionId(), oid, rid.GetPageId(), rid.GetSlotNum(), lock_mode);
-            lock_request_queue->request_queue_.erase(it);
+            it = lock_request_queue->request_queue_.erase(it);
+            lock_request_queue->cv_.notify_all();
           }
         }
         return false;
@@ -322,22 +358,27 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
   txn->UnlockTxn();
   std::shared_ptr<LockRequestQueue> lock_request_queue = row_lock_map_[rid];
   LockMode lock_mode;
-  if(lock_request_queue->RemoveLockRequest(&lock_mode, txn->GetTransactionId())){
-    row_lock_map_latch_.unlock();
-    txn->LockTxn();
-    DeleteTxnRowLockSet(txn, lock_mode, oid, rid);
-    fmt::print("[Unlock]Txn {} unlocked table {} rid {}", txn->GetTransactionId(), oid, rid.ToString());
-    if(!force){
-      TransactionStateUpdate(txn, lock_mode);
+  lock_request_queue->latch_.lock();
+  row_lock_map_latch_.unlock();
+  // 使用迭代器遍历队列，查找要删除的元素
+  for (auto it = lock_request_queue->request_queue_.begin(); it != lock_request_queue->request_queue_.end(); ++it) {
+    if ((*it)->txn_id_ == txn->GetTransactionId() && (*it)->granted_) {
+      // 找到要删除的元素，使用 erase() 方法删除
+      lock_mode = (*it)->lock_mode_;
+      lock_request_queue->request_queue_.erase(it);
+      txn->LockTxn();
+      DeleteTxnRowLockSet(txn, lock_mode, oid, rid);
+      fmt::print("[Unlock] Txn {} unlocked table {} rid {},{}\n", txn->GetTransactionId(), oid, rid.GetPageId(), rid.GetSlotNum());
+      if(!force){
+        TransactionStateUpdate(txn, lock_mode);
+      }
+      txn->UnlockTxn();
+      break;
     }
-    txn->UnlockTxn();
   }
-  else {
-    txn->SetState(TransactionState::ABORTED);
-    row_lock_map_latch_.unlock();
-    txn->UnlockTxn();
-    throw TransactionAbortException(txn->GetTransactionId(), AbortReason::ATTEMPTED_UNLOCK_BUT_NO_LOCK_HELD);
-  }
+  // 通知等待的线程
+  lock_request_queue->latch_.unlock();
+  lock_request_queue->cv_.notify_all();
   return true;
 }
 
