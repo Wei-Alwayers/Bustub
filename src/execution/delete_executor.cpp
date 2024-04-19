@@ -40,6 +40,8 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     TupleMeta meta = table->GetTupleMeta(child_rid);
     meta.is_deleted_ = true;
     table->UpdateTupleMeta(meta, child_rid);
+    // 维护table write set
+    exec_ctx_->GetTransaction()->AppendTableWriteRecord(TableWriteRecord{plan_->TableOid(), child_rid, table});
     // 删除index
     Tuple index_tuple;
     for (IndexInfo *index_ptr : indexes) {
