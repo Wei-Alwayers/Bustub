@@ -150,7 +150,6 @@ void TableLockUpgradeTest1() {
   txn_mgr.Commit(txn1);
   CheckCommitted(txn1);
   CheckTableLockSizes(txn1, 0, 0, 0, 0, 0);
-
   delete txn1;
 }
 TEST(LockManagerTest, TableLockUpgradeTest1) { TableLockUpgradeTest1(); }  // NOLINT

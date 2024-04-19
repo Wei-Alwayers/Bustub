@@ -83,6 +83,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
     // 增加一个请求
     std::shared_ptr<LockRequest> lock_request =
         std::make_shared<LockRequest>(txn->GetTransactionId(), lock_mode, oid);
+    lock_request->granted_ = false;
     lock_request_queue->request_queue_.push_back(lock_request);
     txn_id_t txn_id = txn->GetTransactionId();
     txn->UnlockTxn();
@@ -136,35 +137,72 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
 }
 
 auto LockManager::GrantLock(txn_id_t txn_id, std::shared_ptr<LockRequestQueue> lock_request_queue, LockMode lock_mode) -> bool{
-  //考虑是否和当前granted锁兼容
-  bool is_not_compatible = false;
+  std::unordered_set<LockMode> granted_lock_modes;
+  std::unordered_set<LockMode> compatible_lock_modes = {LockMode::SHARED,
+                                                        LockMode::EXCLUSIVE,
+                                                        LockMode::INTENTION_SHARED,
+                                                        LockMode::INTENTION_EXCLUSIVE,
+                                                        LockMode::SHARED_INTENTION_EXCLUSIVE};
+  std::unordered_map<LockMode, std::vector<LockMode>> not_compatible_map = {
+      {LockMode::SHARED, {LockMode::INTENTION_EXCLUSIVE, LockMode::SHARED_INTENTION_EXCLUSIVE, LockMode::EXCLUSIVE}},
+      {LockMode::INTENTION_SHARED, {LockMode::EXCLUSIVE}},
+      {LockMode::INTENTION_EXCLUSIVE, {LockMode::SHARED, LockMode::SHARED_INTENTION_EXCLUSIVE, LockMode::EXCLUSIVE}},
+      {LockMode::SHARED_INTENTION_EXCLUSIVE, {LockMode::INTENTION_EXCLUSIVE, LockMode::SHARED, LockMode::SHARED_INTENTION_EXCLUSIVE, LockMode::EXCLUSIVE}},
+      {LockMode::EXCLUSIVE, {LockMode::SHARED, LockMode::EXCLUSIVE, LockMode::INTENTION_SHARED, LockMode::INTENTION_SHARED, LockMode::SHARED_INTENTION_EXCLUSIVE}}
+  };
+
   for (const auto& request : lock_request_queue->request_queue_) {
-    if (request->granted_ && !AreLocksCompatible(lock_mode, request->lock_mode_)) {
-      is_not_compatible = true;
-      break;
+    if(request->granted_){
+      granted_lock_modes.insert(request->lock_mode_);
     }
   }
-  if(is_not_compatible){
+  for(auto & granted_lock_mode : granted_lock_modes){
+    std::vector<LockMode> not_compatible_list = not_compatible_map[granted_lock_mode];
+    for(auto & not_compatible_mode : not_compatible_list){
+        compatible_lock_modes.erase(not_compatible_mode);
+    }
+  }
+  // 是否和当前granted的lock兼容
+  if(compatible_lock_modes.find(lock_mode) == compatible_lock_modes.end()){
     return false;
   }
-  // upgrading优先级最高
   if(lock_request_queue->upgrading_ != INVALID_TXN_ID){
     if(lock_request_queue->upgrading_ == txn_id){
       return true;
     }
-    return false;
-  }
-  // FIFO
-  bool is_first = false;
-  for (const auto& request : lock_request_queue->request_queue_) {
-    if (!request->granted_) {
-      if(request->txn_id_ == txn_id){
-        is_first = true;
+    // 查找upgrading txn的lock mode
+    LockMode upgrading_lock_mode;
+    for (const auto& request : lock_request_queue->request_queue_) {
+      if(request->txn_id_ == lock_request_queue->upgrading_){
+        upgrading_lock_mode = request->lock_mode_;
+        break;
       }
-      break;
+    }
+    if(compatible_lock_modes.find(upgrading_lock_mode) != compatible_lock_modes.end()){
+      // upgrading txn也将会被granted
+      std::vector<LockMode> not_compatible_list = not_compatible_map[upgrading_lock_mode];
+      for(auto & not_compatible_mode : not_compatible_list){
+        compatible_lock_modes.erase(not_compatible_mode);
+      }
     }
   }
-  return is_first;
+  // FIFO顺序检查txn前面是否都兼容
+  for (const auto& request : lock_request_queue->request_queue_) {
+    if(request->txn_id_ == txn_id){
+      break;
+    }
+    if(!request->granted_ && request->txn_id_ != lock_request_queue->upgrading_){
+      if(compatible_lock_modes.find(request->lock_mode_) != compatible_lock_modes.end()){
+        // 前面的request txn也将会被granted
+        std::vector<LockMode> not_compatible_list = not_compatible_map[request->lock_mode_];
+        for(auto & not_compatible_mode : not_compatible_list){
+          compatible_lock_modes.erase(not_compatible_mode);
+        }
+      }
+    }
+  }
+  return compatible_lock_modes.find(lock_mode) != compatible_lock_modes.end();
+
 }
 
 auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool {
