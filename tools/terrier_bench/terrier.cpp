@@ -142,7 +142,7 @@ auto main(int argc, char **argv) -> int {
   program.add_argument("--force-enable-update").help("use update statement in terrier bench");
   program.add_argument("--nft").help("number of NFTs in the bench");
 
-  size_t bustub_nft_num = 10;
+  size_t bustub_nft_num = 2;
 
   try {
     program.parse_args(argc, argv);

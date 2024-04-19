@@ -30,6 +30,7 @@ void TransactionManager::Commit(Transaction *txn) {
 }
 
 void TransactionManager::Abort(Transaction *txn) {
+  fmt::print("[ABORT] {}", txn->GetTransactionId());
   auto table_write_set = txn->GetWriteSet();
   while (!table_write_set->empty()){
     auto table_write_record = table_write_set->front();

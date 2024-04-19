@@ -22,7 +22,11 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
 void InsertExecutor::Init() {
   child_executor_->Init();
   is_inserted_ = false;
-  exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE, plan_->TableOid());
+  try {
+    exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE, plan_->TableOid());
+  } catch (TransactionAbortException &e){
+    fmt::print(e.GetInfo());
+  }
 }
 
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
@@ -38,7 +42,12 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   Tuple child_tuple;
   while (child_executor_->Next(&child_tuple, &child_rid)) {
     size++;
-    RID insert_rid = table->InsertTuple(meta, child_tuple, exec_ctx_->GetLockManager(), exec_ctx_->GetTransaction(), plan_->TableOid()).value();
+    RID insert_rid;
+    try{
+      insert_rid = table->InsertTuple(meta, child_tuple, exec_ctx_->GetLockManager(), exec_ctx_->GetTransaction(), plan_->TableOid()).value();
+    } catch (TransactionAbortException &e){
+      fmt::print(e.GetInfo());
+    }
     // 维护table write set
     exec_ctx_->GetTransaction()->AppendTableWriteRecord(TableWriteRecord{plan_->TableOid(), insert_rid, table});
     // 插入index
