@@ -61,6 +61,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
             }
             else{
               txn->SetState(TransactionState::ABORTED);
+              txn->UnlockTxn();
               throw TransactionAbortException(txn->GetTransactionId(), AbortReason::UPGRADE_CONFLICT);
             }
           }
@@ -94,6 +95,9 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
           if ((*it)->txn_id_ == txn_id){
             fmt::print("[Abort] Txn{} forgive to lock table{} in {} mode!\n", txn->GetTransactionId(), oid, lock_mode);
             it = lock_request_queue->request_queue_.erase(it);
+            if(lock_request_queue->upgrading_ == txn_id){
+              lock_request_queue->upgrading_ = INVALID_TXN_ID;
+            }
             lock_request_queue->cv_.notify_all();
           }
         }
@@ -107,6 +111,9 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
         (*it)->granted_ = true;
         InsertTxnTableLockSet(txn, lock_mode, oid);
         fmt::print("[Lock] Txn {} locked table {} in {} mode successfully!\n", txn->GetTransactionId(), oid, lock_mode);
+        if(lock_request_queue->upgrading_ == txn_id){
+          lock_request_queue->upgrading_ = INVALID_TXN_ID;
+        }
         lock_request_queue->cv_.notify_all();
         break;
       }
@@ -259,6 +266,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     lock_request_queue = row_lock_map_[rid];
     row_lock_map_latch_.unlock();
     LockMode cur_lock_mode;
+
     std::unique_lock<std::mutex> lock(lock_request_queue->latch_);
     // 检查是否符合升级规则
     for (auto it = lock_request_queue->request_queue_.begin(); it != lock_request_queue->request_queue_.end(); ++it) {
@@ -311,6 +319,9 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
           if ((*it)->txn_id_ == txn_id){
             fmt::print("[Abort] Txn{} forgive to lock table{} rid{},{} in {} mode!\n", txn->GetTransactionId(), oid, rid.GetPageId(), rid.GetSlotNum(), lock_mode);
             it = lock_request_queue->request_queue_.erase(it);
+            if(lock_request_queue->upgrading_ == txn_id){
+              lock_request_queue->upgrading_ = INVALID_TXN_ID;
+            }
             lock_request_queue->cv_.notify_all();
           }
         }
@@ -324,6 +335,9 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
         (*it)->granted_ = true;
         InsertTxnRowLockSet(txn, lock_mode, oid, rid);
         fmt::print("[Lock]Txn {} locked table {} rid {},{} in {} mode successfully!\n", txn->GetTransactionId(), oid, rid.GetPageId(), rid.GetSlotNum(), lock_mode);
+        if(lock_request_queue->upgrading_ == txn_id){
+          lock_request_queue->upgrading_ = INVALID_TXN_ID;
+        }
         lock_request_queue->cv_.notify_all();
         break;
       }
