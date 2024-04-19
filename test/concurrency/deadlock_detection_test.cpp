@@ -77,7 +77,7 @@ TEST(LockManagerDeadlockDetectionTest, BasicDeadlockDetectionTest) {
     res = lock_mgr.LockRow(txn0, LockManager::LockMode::EXCLUSIVE, toid, rid0);
     EXPECT_EQ(true, res);
     EXPECT_EQ(TransactionState::GROWING, txn1->GetState());
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
     // This will block
     res = lock_mgr.LockRow(txn0, LockManager::LockMode::EXCLUSIVE, toid, rid1);

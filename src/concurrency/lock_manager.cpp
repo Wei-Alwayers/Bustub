@@ -523,6 +523,7 @@ void LockManager::RunCycleDetection() {
         }
         lock_queue->latch_.unlock();
       }
+      table_lock_map_latch_.unlock();
       row_lock_map_latch_.lock();
       for (auto & it : row_lock_map_) {
         std::shared_ptr<LockRequestQueue> lock_queue = it.second;
@@ -538,13 +539,13 @@ void LockManager::RunCycleDetection() {
         }
         lock_queue->latch_.unlock();
       }
+      row_lock_map_latch_.unlock();
       txn_id_t txn_id;
       while (HasCycle(&txn_id)){
         fmt::print("[DeadLock] find cycle, aborting {}\n", txn_id);
+        waits_for_.erase(txn_id);
         txn_manager_->Abort(txn_manager_->GetTransaction(txn_id));
       }
-      row_lock_map_latch_.unlock();
-      table_lock_map_latch_.unlock();
     }
   }
 }
