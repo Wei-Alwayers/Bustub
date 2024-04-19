@@ -148,7 +148,7 @@ auto LockManager::GrantLock(txn_id_t txn_id, std::shared_ptr<LockRequestQueue> l
       {LockMode::INTENTION_SHARED, {LockMode::EXCLUSIVE}},
       {LockMode::INTENTION_EXCLUSIVE, {LockMode::SHARED, LockMode::SHARED_INTENTION_EXCLUSIVE, LockMode::EXCLUSIVE}},
       {LockMode::SHARED_INTENTION_EXCLUSIVE, {LockMode::INTENTION_EXCLUSIVE, LockMode::SHARED, LockMode::SHARED_INTENTION_EXCLUSIVE, LockMode::EXCLUSIVE}},
-      {LockMode::EXCLUSIVE, {LockMode::SHARED, LockMode::EXCLUSIVE, LockMode::INTENTION_SHARED, LockMode::INTENTION_SHARED, LockMode::SHARED_INTENTION_EXCLUSIVE}}
+      {LockMode::EXCLUSIVE, {LockMode::SHARED, LockMode::EXCLUSIVE, LockMode::INTENTION_SHARED, LockMode::INTENTION_EXCLUSIVE, LockMode::SHARED_INTENTION_EXCLUSIVE}}
   };
 
   for (const auto& request : lock_request_queue->request_queue_) {

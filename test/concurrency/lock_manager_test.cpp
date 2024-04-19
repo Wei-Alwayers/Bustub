@@ -139,8 +139,8 @@ void TableLockUpgradeTest1() {
   auto txn1 = txn_mgr.Begin();
 
   /** Take S lock */
-  EXPECT_EQ(true, lock_mgr.LockTable(txn1, LockManager::LockMode::SHARED, oid));
-  CheckTableLockSizes(txn1, 1, 0, 0, 0, 0);
+  EXPECT_EQ(true, lock_mgr.LockTable(txn1, LockManager::LockMode::INTENTION_SHARED, oid));
+  CheckTableLockSizes(txn1, 0, 0, 1, 0, 0);
 
   /** Upgrade S to X */
   EXPECT_EQ(true, lock_mgr.LockTable(txn1, LockManager::LockMode::EXCLUSIVE, oid));

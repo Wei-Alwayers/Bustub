@@ -20,7 +20,9 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
 void SeqScanExecutor::Init() {
   try {
     if(exec_ctx_->GetTransaction()->GetIsolationLevel() != IsolationLevel::READ_UNCOMMITTED){
-      exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_SHARED, plan_->GetTableOid());
+      if(!exec_ctx_->GetTransaction()->IsTableExclusiveLocked(plan_->GetTableOid()) && !exec_ctx_->GetTransaction()->IsTableIntentionExclusiveLocked(plan_->GetTableOid())){
+        exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_SHARED, plan_->GetTableOid());
+      }
     }
   } catch (TransactionAbortException &e){
     fmt::print(e.GetInfo());
@@ -34,50 +36,55 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     if(exec_ctx_->IsDelete()){
       exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::EXCLUSIVE, plan_->GetTableOid());
     }
-    if(exec_ctx_->GetTransaction()->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED){
-      // READ_UNCOMMITTED不需要任何锁
-      if (table_iterator_ptr_->IsEnd()) {
-        return false;
-      }
-      while (table_iterator_ptr_->GetTuple().first.is_deleted_) {
-        table_iterator_ptr_->operator++();
-        if (table_iterator_ptr_->IsEnd()) {
-          return false;
-        }
-      }
-      *tuple = table_iterator_ptr_->GetTuple().second;
-      *rid = table_iterator_ptr_->GetRID();
-      table_iterator_ptr_->operator++();
-      return true;
-    }
-    // 其他隔离等级，需要加锁
+    // unlock table
     if (table_iterator_ptr_->IsEnd()) {
+      // READ_COMMITTED下如果table的锁是IS，需要释放
+      if(exec_ctx_->GetTransaction()->GetIsolationLevel() == IsolationLevel::READ_COMMITTED && exec_ctx_->GetTransaction()->IsTableIntentionSharedLocked(plan_->GetTableOid())){
+        // 立即释放锁
+        exec_ctx_->GetLockManager()->UnlockTable(exec_ctx_->GetTransaction(), plan_->GetTableOid());
+      }
       return false;
     }
-    if(exec_ctx_->IsDelete()){
+    // lock row
+    if(exec_ctx_->GetTransaction()->IsTableIntentionSharedLocked(plan_->GetTableOid())){
+        exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::SHARED, plan_->GetTableOid(), table_iterator_ptr_->GetRID());
+    }
+    else if(exec_ctx_->GetTransaction()->IsTableExclusiveLocked(plan_->GetTableOid()) || exec_ctx_->GetTransaction()->IsTableIntentionExclusiveLocked(plan_->GetTableOid())){
       exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::EXCLUSIVE, plan_->GetTableOid(), table_iterator_ptr_->GetRID());
     }
-    else{
-      exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::SHARED, plan_->GetTableOid(), table_iterator_ptr_->GetRID());
-    }
+
     while (table_iterator_ptr_->GetTuple().first.is_deleted_) {
-      exec_ctx_->GetLockManager()->UnlockRow(exec_ctx_->GetTransaction(), plan_->GetTableOid(), table_iterator_ptr_->GetRID(), true);
+      // unlock useless row
+      if( exec_ctx_->GetTransaction()->IsRowSharedLocked(plan_->GetTableOid(), table_iterator_ptr_->GetRID()) ||
+          exec_ctx_->GetTransaction()->IsRowExclusiveLocked(plan_->GetTableOid(), table_iterator_ptr_->GetRID())){
+        exec_ctx_->GetLockManager()->UnlockRow(exec_ctx_->GetTransaction(), plan_->GetTableOid(), table_iterator_ptr_->GetRID(), true);
+      }
+
       table_iterator_ptr_->operator++();
+
+      // unlock table
       if (table_iterator_ptr_->IsEnd()) {
+        // READ_COMMITTED下如果table的锁是IS，需要释放
+        if(exec_ctx_->GetTransaction()->GetIsolationLevel() == IsolationLevel::READ_COMMITTED && exec_ctx_->GetTransaction()->IsTableIntentionSharedLocked(plan_->GetTableOid())){
+          // 立即释放锁
+          exec_ctx_->GetLockManager()->UnlockTable(exec_ctx_->GetTransaction(), plan_->GetTableOid());
+        }
         return false;
       }
-      if(exec_ctx_->IsDelete()){
-        exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::EXCLUSIVE, plan_->GetTableOid(), table_iterator_ptr_->GetRID());
-      }
-      else{
+
+      // lock row
+      if(exec_ctx_->GetTransaction()->IsTableIntentionSharedLocked(plan_->GetTableOid())){
         exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::SHARED, plan_->GetTableOid(), table_iterator_ptr_->GetRID());
+      }
+      else if(exec_ctx_->GetTransaction()->IsTableExclusiveLocked(plan_->GetTableOid()) || exec_ctx_->GetTransaction()->IsTableIntentionExclusiveLocked(plan_->GetTableOid())){
+        exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::EXCLUSIVE, plan_->GetTableOid(), table_iterator_ptr_->GetRID());
       }
     }
     *tuple = table_iterator_ptr_->GetTuple().second;
     *rid = table_iterator_ptr_->GetRID();
-    if(exec_ctx_->GetTransaction()->GetIsolationLevel() == IsolationLevel::READ_COMMITTED){
-      // 立即释放锁
-      exec_ctx_->GetLockManager()->UnlockRow(exec_ctx_->GetTransaction(), plan_->GetTableOid(), table_iterator_ptr_->GetRID(), true);
+    // unlock row
+    if(exec_ctx_->GetTransaction()->GetIsolationLevel() == IsolationLevel::READ_COMMITTED && exec_ctx_->GetTransaction()->IsTableIntentionSharedLocked(plan_->GetTableOid())){
+      exec_ctx_->GetLockManager()->UnlockRow(exec_ctx_->GetTransaction(), plan_->GetTableOid(), table_iterator_ptr_->GetRID(), false);
     }
     table_iterator_ptr_->operator++();
   } catch (TransactionAbortException &e){

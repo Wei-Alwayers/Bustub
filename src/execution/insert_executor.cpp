@@ -23,7 +23,9 @@ void InsertExecutor::Init() {
   child_executor_->Init();
   is_inserted_ = false;
   try {
-    exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE, plan_->TableOid());
+    if(!exec_ctx_->GetTransaction()->IsTableExclusiveLocked(plan_->TableOid())){
+      exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE, plan_->TableOid());
+    }
   } catch (TransactionAbortException &e){
     fmt::print(e.GetInfo());
   }
