@@ -34,7 +34,7 @@ void SeqScanExecutor::Init() {
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   try {
     if(exec_ctx_->IsDelete()){
-      exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::EXCLUSIVE, plan_->GetTableOid());
+      exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE, plan_->GetTableOid());
     }
     // unlock table
     if (table_iterator_ptr_->IsEnd()) {
