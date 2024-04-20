@@ -170,7 +170,7 @@ void RowLockTest1() {
 
   /** Each transaction takes an S lock on the same table and row and then unlocks */
   auto task = [&](int txn_id) {
-    try{
+    try {
       bool res;
       res = lock_mgr.LockTable(txns[txn_id], LockManager::LockMode::SHARED, oid);
       EXPECT_TRUE(res);
@@ -194,10 +194,9 @@ void RowLockTest1() {
 
       txn_mgr.Commit(txns[txn_id]);
       CheckCommitted(txns[txn_id]);
-    }catch (TransactionAbortException& ex) {
+    } catch (TransactionAbortException &ex) {
       std::cout << ex.GetInfo() << std::endl;
     }
-
   };
 
   std::vector<std::thread> threads;

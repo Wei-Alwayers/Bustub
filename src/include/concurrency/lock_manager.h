@@ -309,7 +309,6 @@ class LockManager {
 
   TransactionManager *txn_manager_;
 
-
  private:
   /** Spring 2023 */
   /* You are allowed to modify all functions below. */
@@ -341,8 +340,8 @@ class LockManager {
    */
   auto CanLockUpgrade(LockMode curr_lock_mode, LockMode requested_lock_mode) -> bool;
   auto CheckAppropriateLockOnTable(Transaction *txn, const table_oid_t &oid, LockMode row_lock_mode) -> bool;
-  auto FindCycle(txn_id_t source_txn, std::unordered_set<txn_id_t> &on_path,
-                 std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool;
+  auto FindCycle(txn_id_t source_txn, std::unordered_set<txn_id_t> &on_path, std::unordered_set<txn_id_t> &visited,
+                 txn_id_t *abort_txn_id) -> bool;
 
   void InsertTxnTableLockSet(Transaction *txn, LockMode lock_mode, const table_oid_t &oid);
   void InsertTxnRowLockSet(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid);

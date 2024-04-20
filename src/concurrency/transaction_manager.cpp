@@ -32,7 +32,7 @@ void TransactionManager::Commit(Transaction *txn) {
 void TransactionManager::Abort(Transaction *txn) {
   fmt::print("[ABORT] {}\n", txn->GetTransactionId());
   auto table_write_set = txn->GetWriteSet();
-  while (!table_write_set->empty()){
+  while (!table_write_set->empty()) {
     auto table_write_record = table_write_set->front();
     table_write_set->pop_front();
     TupleMeta meta = table_write_record.table_heap_->GetTupleMeta(table_write_record.rid_);

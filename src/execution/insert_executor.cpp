@@ -23,10 +23,11 @@ void InsertExecutor::Init() {
   child_executor_->Init();
   is_inserted_ = false;
   try {
-    if(!exec_ctx_->GetTransaction()->IsTableExclusiveLocked(plan_->TableOid())){
-      exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE, plan_->TableOid());
+    if (!exec_ctx_->GetTransaction()->IsTableExclusiveLocked(plan_->TableOid())) {
+      exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE,
+                                             plan_->TableOid());
     }
-  } catch (TransactionAbortException &e){
+  } catch (TransactionAbortException &e) {
     fmt::print(e.GetInfo());
   }
 }
@@ -45,9 +46,12 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   while (child_executor_->Next(&child_tuple, &child_rid)) {
     size++;
     RID insert_rid;
-    try{
-      insert_rid = table->InsertTuple(meta, child_tuple, exec_ctx_->GetLockManager(), exec_ctx_->GetTransaction(), plan_->TableOid()).value();
-    } catch (TransactionAbortException &e){
+    try {
+      insert_rid = table
+                       ->InsertTuple(meta, child_tuple, exec_ctx_->GetLockManager(), exec_ctx_->GetTransaction(),
+                                     plan_->TableOid())
+                       .value();
+    } catch (TransactionAbortException &e) {
       fmt::print(e.GetInfo());
     }
     // 维护table write set
