@@ -1,17 +1,24 @@
 <img src="logo/bustub-whiteborder.svg" alt="BusTub Logo" height="200">
 
------------------
+# **Bustub: A Relational Database Management System**
 
-[![Build Status](https://github.com/cmu-db/bustub/actions/workflows/cmake.yml/badge.svg)](https://github.com/cmu-db/bustub/actions/workflows/cmake.yml)
+## **Overview**
+Bustub is an educational in-memory database management system (DBMS) built as part of the CMU 15-445 course. The project involves designing and implementing key components of a DBMS, such as storage, buffer pool management, and query execution, with a focus on hands-on learning of database internals.
 
-BusTub is a relational database management system built at [Carnegie Mellon University](https://db.cs.cmu.edu) for the [Introduction to Database Systems](https://15445.courses.cs.cmu.edu) (15-445/645) course. This system was developed for educational purposes and should not be used in production environments.
+This repository showcases my implementation of Bustub, demonstrating my skills in systems programming, algorithm design, and database architecture.
 
-BusTub supports basic SQL and comes with an interactive shell. You can get it running after finishing all the course projects.
+## **Key Features**
+- **Buffer Pool Manager**: Implemented an efficient buffer pool manager to handle page replacement using LRU (Least Recently Used) caching policies.
+- **Indexing**: Designed and implemented B+ Tree indexing to support efficient range queries and data retrieval.
+- **Query Execution**: Developed a query execution engine capable of handling SQL-like queries with various operators, including joins and aggregations.
+- **Concurrency Control**: Integrated concurrency mechanisms to ensure data consistency under multi-threaded environments.
+- **Transaction Management**: Supported atomicity, consistency, isolation, and durability (ACID) properties for transactions.
 
-<img src="logo/sql.png" alt="BusTub SQL" width="400">
-
-**WARNING: IF YOU ARE A STUDENT IN THE CLASS, DO NOT DIRECTLY FORK THIS REPO. DO NOT PUSH PROJECT SOLUTIONS PUBLICLY. THIS IS AN ACADEMIC INTEGRITY VIOLATION AND CAN LEAD TO GETTING YOUR DEGREE REVOKED, EVEN AFTER YOU GRADUATE.**
-
+## **Skills Demonstrated**
+- **Programming Languages**: C++ (Modern C++ features like smart pointers, RAII).
+- **Database Concepts**: Buffer management, indexing, and query optimization.
+- **Systems Programming**: Multi-threading, memory management, and performance optimization.
+- **Problem Solving**: Debugging complex systems and ensuring functionality through unit testing.
 ## Cloning this Repository
 
 The following instructions are adapted from the Github documentation on [duplicating a repository](https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/creating-a-repository-on-github/duplicating-a-repository). The procedure below walks you through creating a private BusTub repository that you can use for development.
@@ -165,3 +172,18 @@ to open a shell within the box. You can find Bustub's code mounted at `/bustub` 
 $ cd build
 $ make check-tests
 ```
+
+## **Accomplishments**
+- **High Performance**: Achieved high efficiency in query execution and page replacement tests, surpassing baseline benchmarks.
+- **Robust Testing**: Implemented and passed extensive unit tests to validate the correctness of each module.
+- **Real-World Applications**: Gained foundational knowledge of DBMS internals, relevant to modern database technologies like PostgreSQL and MySQL.
+
+## **What I Learned**
+- Hands-on understanding of database internals and their interaction with the operating system.
+- Practical experience with designing modular and maintainable software architectures.
+- Techniques for optimizing algorithms and data structures for real-world systems.
+
+## **Contact**
+Feel free to reach out to discuss my implementation or provide feedback:
+- **Email**: haoming.wei321@gmail.com
+- **LinkedIn**: [Leo Wei](https://www.linkedin.com/in/haoming-wei/)
